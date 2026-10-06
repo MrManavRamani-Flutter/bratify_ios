@@ -6,9 +6,7 @@ import '../constants/app_colors.dart';
 import '../models/frame_model.dart';
 import '../models/meme_design_model.dart';
 import '../services/database_service.dart';
-import '../widgets/app_svg_icon.dart';
 import 'generate_screen.dart';
-import 'settings/settings_screen.dart';
 
 /// Clean, modern Studio Hub (Home Screen)
 /// Allows user to start a new design, pick a frame layout preset, or resume saved drafts.
@@ -95,19 +93,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ],
-                    ),
-                    const Spacer(),
-                    IosGlassIconButton(
-                      svgPath: 'assets/svg/settings.svg',
-                      size: 44,
-                      iconSize: 20,
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (ctx) => const SettingScreen()),
-                        );
-                      },
                     ),
                   ],
                 ),
