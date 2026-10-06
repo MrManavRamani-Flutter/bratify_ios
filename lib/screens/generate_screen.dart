@@ -23,12 +23,15 @@ import '../features/studio_effects/studio_effects_model.dart';
 import '../features/studio_effects/studio_effects_sheet.dart';
 import '../models/frame_model.dart';
 import '../models/meme_design_model.dart';
+import '../models/text_layer_model.dart';
 import '../my_app.dart';
 import '../services/database_service.dart';
 import '../services/logger_service.dart';
 import '../widgets/app_bar_widget.dart';
 import '../widgets/app_svg_icon.dart';
 import '../widgets/frame_canvas_widget.dart';
+import '../widgets/interactive_text_overlay.dart';
+import '../widgets/text_layers_manager_widget.dart';
 import 'image_crop_screen.dart';
 import 'process_screen.dart';
 
@@ -95,6 +98,147 @@ class _GenerateScreenState extends State<GenerateScreen> {
   TextAlign _currentAlignment = TextAlign.center;
   String _currentTextCase = 'lowercase'; // Iconic Brat signature
   double _letterSpacing = -0.5;
+
+  // Multi-Text Layers Management State
+  List<TextLayerModel> _textLayers = [];
+  String? _activeTextLayerId;
+  bool _isExporting = false;
+
+  TextLayerModel? get _activeTextLayer {
+    if (_textLayers.isEmpty) return null;
+    return _textLayers.firstWhere(
+      (l) => l.id == _activeTextLayerId,
+      orElse: () => _textLayers.first,
+    );
+  }
+
+  void _addTextLayer() {
+    HapticFeedback.mediumImpact();
+    _recordHistory();
+    final newId = 'layer_${DateTime.now().millisecondsSinceEpoch}';
+    final offsetStagger = (0.22 + (_textLayers.length * 0.14)).clamp(0.12, 0.88);
+    final newLayer = TextLayerModel(
+      id: newId,
+      text: 'new text',
+      fontFamily: _currentFontFamily,
+      fontSize: _currentFontSize,
+      fontWeight: _currentFontWeight,
+      textColor: _getEffectiveTextColor(),
+      textAlign: _currentAlignment,
+      letterSpacing: _letterSpacing,
+      lineHeight: 1.05,
+      textCase: _currentTextCase,
+      blurSigma: _blurSigma,
+      offset: Offset(0.5, offsetStagger),
+    );
+    setState(() {
+      _textLayers.add(newLayer);
+      _activeTextLayerId = newId;
+    });
+  }
+
+  void _deleteTextLayer(String id) {
+    if (_textLayers.length <= 1) return;
+    HapticFeedback.mediumImpact();
+    _recordHistory();
+    setState(() {
+      _textLayers.removeWhere((l) => l.id == id);
+      if (_activeTextLayerId == id) {
+        _activeTextLayerId = _textLayers.first.id;
+      }
+    });
+  }
+
+  void _duplicateTextLayer(String id) {
+    final layer = _textLayers.firstWhere((l) => l.id == id, orElse: () => _textLayers.first);
+    HapticFeedback.lightImpact();
+    _recordHistory();
+    final newId = 'layer_${DateTime.now().millisecondsSinceEpoch}';
+    final duplicated = layer.copyWith(
+      id: newId,
+      offset: Offset(
+        (layer.offset.dx + 0.04).clamp(0.05, 0.95),
+        (layer.offset.dy + 0.04).clamp(0.05, 0.95),
+      ),
+    );
+    setState(() {
+      _textLayers.add(duplicated);
+      _activeTextLayerId = newId;
+    });
+  }
+
+  void _updateActiveTextLayer(TextLayerModel updated) {
+    final idx = _textLayers.indexWhere((l) => l.id == updated.id);
+    if (idx != -1) {
+      setState(() {
+        _textLayers[idx] = updated;
+        if (updated.id == _textLayers.first.id || updated.id == _activeTextLayerId) {
+          _currentText = updated.text;
+          if (_textController.text != updated.text) {
+            _textController.text = updated.text;
+          }
+          _currentFontFamily = updated.fontFamily;
+          _currentFontSize = updated.fontSize;
+          _currentFontWeight = updated.fontWeight;
+          _currentAlignment = updated.textAlign;
+          _currentTextCase = updated.textCase;
+          _letterSpacing = updated.letterSpacing;
+          if (_activeFrame != null) {
+            _activeFrame = _activeFrame!.copyWith(
+              caption: updated.text,
+              captionFont: updated.fontFamily,
+              captionSize: updated.fontSize,
+              captionColor: updated.textColor,
+              captionAlignment: _getAlignmentGeometry(),
+            );
+            _frameCaptionController.text = updated.text;
+          }
+        }
+      });
+    }
+  }
+
+  void _showEditTextLayerDialog(String id) {
+    final layer = _textLayers.firstWhere((l) => l.id == id, orElse: () => _textLayers.first);
+    final editController = TextEditingController(text: layer.text);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Edit Text Label', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        content: TextField(
+          controller: editController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Enter label text...',
+            filled: true,
+            fillColor: const Color(0xffF1F5F9),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              _recordHistory();
+              _updateActiveTextLayer(layer.copyWith(text: editController.text));
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
 
   // Aspect Ratio (1:1, 9:16, 4:5, 16:9)
   double _aspectRatio = 1.0;
@@ -232,14 +376,32 @@ class _GenerateScreenState extends State<GenerateScreen> {
       _aspectRatio = _activeFrame!.aspectRatio;
       _syncPhotoSlots();
     }
-    if (widget.initialText != null && widget.initialText!.isNotEmpty) {
-      _currentText = widget.initialText!;
-      if (_activeFrame != null) {
-        _activeFrame = _activeFrame!.copyWith(caption: widget.initialText!);
-        _frameCaptionController.text = widget.initialText!;
-      }
+    final initialTextStr = (widget.initialText != null && widget.initialText!.isNotEmpty)
+        ? widget.initialText!
+        : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : _currentText);
+    _currentText = initialTextStr;
+    if (_activeFrame != null) {
+      _activeFrame = _activeFrame!.copyWith(caption: _currentText);
+      _frameCaptionController.text = _currentText;
     }
     _textController.text = _currentText;
+    _textLayers = [
+      TextLayerModel(
+        id: 'layer_1',
+        text: _currentText,
+        fontFamily: _activeFrame?.captionFont ?? _currentFontFamily,
+        fontSize: _activeFrame != null ? _activeFrame!.captionSize.clamp(14.0, 72.0) : _currentFontSize,
+        fontWeight: _currentFontWeight,
+        textColor: _activeFrame?.captionColor ?? _getEffectiveTextColor(),
+        textAlign: _currentAlignment,
+        letterSpacing: _letterSpacing,
+        lineHeight: 1.05,
+        textCase: _currentTextCase,
+        blurSigma: _blurSigma,
+        offset: _activeFrame != null ? const Offset(0.5, 0.88) : const Offset(0.5, 0.5),
+      ),
+    ];
+    _activeTextLayerId = 'layer_1';
 
     if (widget.initialImage != null) {
       _selectedImage = widget.initialImage;
@@ -283,6 +445,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
       setState(() {
         _currentText = widget.initialText!;
         _textController.text = widget.initialText!;
+        if (_textLayers.isNotEmpty) {
+          final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
+          if (idx != -1) {
+            _textLayers[idx] = _textLayers[idx].copyWith(text: widget.initialText!);
+          } else {
+            _textLayers[0] = _textLayers[0].copyWith(text: widget.initialText!);
+          }
+        }
         if (_activeFrame != null) {
           _activeFrame = _activeFrame!.copyWith(caption: widget.initialText!);
           _frameCaptionController.text = widget.initialText!;
@@ -307,6 +477,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
     if (_textController.text != _currentText) {
       setState(() {
         _currentText = _textController.text;
+        if (_textLayers.isNotEmpty) {
+          final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
+          if (idx != -1) {
+            _textLayers[idx] = _textLayers[idx].copyWith(text: _currentText);
+          } else {
+            _textLayers[0] = _textLayers[0].copyWith(text: _currentText);
+          }
+        }
       });
     }
   }
@@ -339,6 +517,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
         setState(() {
           _customBgColor = palette.backgroundColor;
           _customTextColor = palette.textColor;
+          if (_activeTextLayer != null) {
+            final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayer!.id);
+            if (idx != -1) {
+              _textLayers[idx] = _activeTextLayer!.copyWith(textColor: palette.textColor);
+            }
+          }
           _studioEffects = _studioEffects.copyWith(
             glowColor: palette.accentColor,
           );
@@ -450,6 +634,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
       photoFit: _photoFit,
       activeFrame: _activeFrame,
       frameCaption: _frameCaptionController.text,
+      textLayers: _textLayers.map((l) => l.copyWith()).toList(),
+      activeTextLayerId: _activeTextLayerId,
     );
   }
 
@@ -484,6 +670,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _photoFit = snap.photoFit;
     _activeFrame = snap.activeFrame;
     _frameCaptionController.text = snap.frameCaption;
+    if (snap.textLayers != null && snap.textLayers!.isNotEmpty) {
+      _textLayers = snap.textLayers!.map((l) => l.copyWith()).toList();
+      _activeTextLayerId = snap.activeTextLayerId ?? _textLayers.first.id;
+    }
   }
 
   void _undo() {
@@ -538,6 +728,22 @@ class _GenerateScreenState extends State<GenerateScreen> {
       _photoFit = BoxFit.cover;
       _existingMemeId = null;
       _selectedTab = 0;
+      _textLayers = [
+        TextLayerModel(
+          id: 'layer_1',
+          text: "brat",
+          offset: const Offset(0.5, 0.5),
+          fontFamily: 'Arial',
+          fontSize: 36.0,
+          fontWeight: 'Bold',
+          textColor: Colors.black,
+          textAlign: TextAlign.center,
+          letterSpacing: -0.5,
+          lineHeight: 1.05,
+          textCase: 'lowercase',
+        ),
+      ];
+      _activeTextLayerId = 'layer_1';
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -672,6 +878,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
       _textController.text = randomQuote;
       _frameCaptionController.text = randomQuote;
       _hasFilmGrain = randomFrame.hasFilmGrain;
+      if (_textLayers.isNotEmpty) {
+        final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
+        if (idx != -1) {
+          _textLayers[idx] = _textLayers[idx].copyWith(text: randomQuote);
+        } else {
+          _textLayers[0] = _textLayers[0].copyWith(text: randomQuote);
+        }
+      }
     });
 
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -706,6 +920,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
     setState(() {
       _currentText = newQuote;
       _textController.text = newQuote;
+      if (_textLayers.isNotEmpty) {
+        final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
+        if (idx != -1) {
+          _textLayers[idx] = _textLayers[idx].copyWith(text: newQuote);
+        } else {
+          _textLayers[0] = _textLayers[0].copyWith(text: newQuote);
+        }
+      }
       if (_activeFrame != null) {
         _activeFrame = _activeFrame!.copyWith(caption: newQuote);
         _frameCaptionController.text = newQuote;
@@ -1153,6 +1375,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
   Future<void> _saveMemeToDatabase() async {
     HapticFeedback.lightImpact();
+    setState(() => _isExporting = true);
+    await WidgetsBinding.instance.endOfFrame;
     try {
       final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
@@ -1215,65 +1439,74 @@ class _GenerateScreenState extends State<GenerateScreen> {
           SnackBar(content: Text('Could not save: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
     }
   }
 
   Future<void> _exportToPhotos() async {
     HapticFeedback.mediumImpact();
-    await ProcessScreen.run(
-      context: context,
-      title: 'Rendering Ultra-HD Photo...',
-      subtitle: 'Encoding 3x Retina resolution to your Photos gallery',
-      featureName: 'PhotoExport',
-      task: () async {
-        final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-        if (boundary == null) return;
-        final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-        if (byteData == null) return;
-        final pngBytes = byteData.buffer.asUint8List();
+    setState(() => _isExporting = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    try {
+      await ProcessScreen.run(
+        context: context,
+        title: 'Rendering Ultra-HD Photo...',
+        subtitle: 'Encoding 3x Retina resolution to your Photos gallery',
+        featureName: 'PhotoExport',
+        task: () async {
+          final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          if (boundary == null) return;
+          final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+          final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData == null) return;
+          final pngBytes = byteData.buffer.asUint8List();
 
-        bool isSuccess = false;
-        try {
-          await Gal.putImageBytes(
-            pngBytes,
-            name: "bratify_${DateTime.now().millisecondsSinceEpoch}",
-          );
-          isSuccess = true;
-          AppLogger.logInfo('Export', 'Gal saved photo successfully ✓');
-        } on GalException catch (e) {
-          AppLogger.logError('Export', 'Gal exception: ${e.type}', e);
-          isSuccess = false;
-        } catch (e, stack) {
-          AppLogger.logError('Export', 'Photo gallery save error', e, stack);
-          isSuccess = false;
-        }
-
-        if (mounted) {
-          if (isSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: const [
-                    Icon(Icons.photo_library, color: AppColors.bratGreen, size: 20),
-                    SizedBox(width: 8),
-                    Text('Saved in Ultra-HD to Photos!'),
-                  ],
-                ),
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: const Color(0xff18181B),
-                duration: const Duration(seconds: 3),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+          bool isSuccess = false;
+          try {
+            await Gal.putImageBytes(
+              pngBytes,
+              name: "bratify_${DateTime.now().millisecondsSinceEpoch}",
             );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Failed to save. Please allow Photos access in Settings.')),
-            );
+            isSuccess = true;
+            AppLogger.logInfo('Export', 'Gal saved photo successfully ✓');
+          } on GalException catch (e) {
+            AppLogger.logError('Export', 'Gal exception: ${e.type}', e);
+            isSuccess = false;
+          } catch (e, stack) {
+            AppLogger.logError('Export', 'Photo gallery save error', e, stack);
+            isSuccess = false;
           }
-        }
-      },
-    );
+
+          if (mounted) {
+            if (isSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: const [
+                      Icon(Icons.photo_library, color: AppColors.bratGreen, size: 20),
+                      SizedBox(width: 8),
+                      Text('Saved in Ultra-HD to Photos!'),
+                    ],
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: const Color(0xff18181B),
+                  duration: const Duration(seconds: 3),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Failed to save. Please allow Photos access in Settings.')),
+              );
+            }
+          }
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
   }
 
   Future<void> _shareMeme(BuildContext context) async {
@@ -1290,6 +1523,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
             height: 80,
           );
 
+    setState(() => _isExporting = true);
+    await WidgetsBinding.instance.endOfFrame;
     try {
       final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
@@ -1318,6 +1553,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
           SnackBar(content: Text('Error sharing: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
     }
   }
 
@@ -1378,6 +1615,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
                       _activeFrame = _activeFrame!.copyWith(captionColor: pickedColor);
                     }
                     _customTextColor = pickedColor;
+                    if (_activeTextLayer != null) {
+                      final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayer!.id);
+                      if (idx != -1) {
+                        _textLayers[idx] = _activeTextLayer!.copyWith(textColor: pickedColor);
+                      }
+                    }
                   }
                 });
                 Navigator.pop(ctx);
@@ -1592,29 +1835,56 @@ class _GenerateScreenState extends State<GenerateScreen> {
                                 ),
                                 child: RepaintBoundary(
                                   key: _repaintKey,
-                                  child: _activeFrame != null
-                                      ? FrameCanvasWidget(
-                                          frame: _activeFrame!,
-                                          imageFile: _selectedImage,
-                                          imageFiles: _selectedImages,
-                                          onPickImage: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
-                                          onPhotoTap: () => _showSlotPhotoOptionsSheet(_activePhotoSlot),
-                                          onPickSlotImage: (idx) => _showPhotoSourceDialog(slotIndex: idx),
-                                          onSlotPhotoTap: (idx) => _showSlotPhotoOptionsSheet(idx),
-                                          onClearImage: _deletePhoto,
-                                          onCropImage: () => _openImageCropAndAdjustDialog(slotIndex: _activePhotoSlot),
-                                          onChangeImage: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
-                                          onDeleteImage: _deletePhoto,
-                                          photoScale: _photoScale,
-                                          photoOffset: _photoOffset,
-                                          photoRotation: _photoRotation,
-                                          customAngleDegrees: _customAngleDegrees,
-                                          flipHorizontal: _flipHorizontal,
-                                          flipVertical: _flipVertical,
-                                          photoFit: _photoFit,
-                                          studioEffects: _studioEffects,
-                                        )
-                                      : _buildClassicCanvas(),
+                                  child: AspectRatio(
+                                    aspectRatio: _activeFrame != null ? _activeFrame!.aspectRatio : _aspectRatio,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        _activeFrame != null
+                                            ? FrameCanvasWidget(
+                                                frame: _activeFrame!,
+                                                imageFile: _selectedImage,
+                                                imageFiles: _selectedImages,
+                                                onPickImage: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
+                                                onPhotoTap: () => _showSlotPhotoOptionsSheet(_activePhotoSlot),
+                                                onPickSlotImage: (idx) => _showPhotoSourceDialog(slotIndex: idx),
+                                                onSlotPhotoTap: (idx) => _showSlotPhotoOptionsSheet(idx),
+                                                onClearImage: _deletePhoto,
+                                                onCropImage: () => _openImageCropAndAdjustDialog(slotIndex: _activePhotoSlot),
+                                                onChangeImage: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
+                                                onDeleteImage: _deletePhoto,
+                                                photoScale: _photoScale,
+                                                photoOffset: _photoOffset,
+                                                photoRotation: _photoRotation,
+                                                customAngleDegrees: _customAngleDegrees,
+                                                flipHorizontal: _flipHorizontal,
+                                                flipVertical: _flipVertical,
+                                                photoFit: _photoFit,
+                                                showCaption: false,
+                                                studioEffects: _studioEffects,
+                                              )
+                                            : _buildClassicCanvas(),
+
+                                        // Draggable, Interactive Multilayer Text Engine
+                                        InteractiveTextOverlay(
+                                          layers: _textLayers,
+                                          activeLayerId: _activeTextLayerId,
+                                          isExporting: _isExporting,
+                                          onSelectLayer: (id) => setState(() => _activeTextLayerId = id),
+                                          onUpdateOffset: (id, newOffset) {
+                                            setState(() {
+                                              final idx = _textLayers.indexWhere((l) => l.id == id);
+                                              if (idx != -1) {
+                                                _textLayers[idx] = _textLayers[idx].copyWith(offset: newOffset);
+                                              }
+                                            });
+                                          },
+                                          onDeleteLayer: (id) => _deleteTextLayer(id),
+                                          onEditLayer: (id) => _showEditTextLayerDialog(id),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1739,26 +2009,27 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   ),
                 ),
 
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  child: ImageFiltered(
-                    imageFilter: ui.ImageFilter.blur(
-                      sigmaX: _blurSigma.clamp(0.0, 4.0),
-                      sigmaY: _blurSigma.clamp(0.0, 4.0),
-                    ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: _getAlignmentGeometry(),
-                      child: Text(
-                        _getFormattedDisplayString(),
-                        textAlign: _currentAlignment,
-                        style: _getTextStyle(),
+              if (_textLayers.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    child: ImageFiltered(
+                      imageFilter: ui.ImageFilter.blur(
+                        sigmaX: _blurSigma.clamp(0.0, 4.0),
+                        sigmaY: _blurSigma.clamp(0.0, 4.0),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: _getAlignmentGeometry(),
+                        child: Text(
+                          _getFormattedDisplayString(),
+                          textAlign: _currentAlignment,
+                          style: _getTextStyle(),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
               if (_hasFilmGrain && _grainOpacity > 0.0)
                 IgnorePointer(
@@ -2476,73 +2747,64 @@ class _GenerateScreenState extends State<GenerateScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Text Input & Inspire Me Button
+        // Top Shortcut Row: Quotes & Inspire Me Buttons
         Row(
           children: [
             Expanded(
-              child: TextFormField(
-                controller: _textController,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
-                  hintText: 'Type your text...',
-                  filled: true,
-                  fillColor: AppColors.offWhiteColor,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(
+              child: IosBounceButton(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  AppLogger.logAction('GenerateScreen', 'Opening Quotes Picker Sheet');
+                  QuotesPickerSheet.show(
+                    context: context,
+                    currentQuote: _currentText,
+                    onQuoteSelected: (selectedQuote) {
+                      _recordHistory();
+                      setState(() {
+                        _currentText = selectedQuote;
+                        _textController.text = selectedQuote;
+                        if (_textLayers.isNotEmpty) {
+                          final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
+                          if (idx != -1) {
+                            _textLayers[idx] = _textLayers[idx].copyWith(text: selectedQuote);
+                          } else {
+                            _textLayers[0] = _textLayers[0].copyWith(text: selectedQuote);
+                          }
+                        }
+                        if (_activeFrame != null) {
+                          _activeFrame = _activeFrame!.copyWith(caption: selectedQuote);
+                          _frameCaptionController.text = selectedQuote;
+                        }
+                      });
+                      AppLogger.logAction('GenerateScreen', 'Quote applied from picker', {'quote': selectedQuote});
+                    },
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Text('💬', style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Text(
+                        '120+ Viral Quotes',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            // Quotes & Captions Library Button
-            IosBounceButton(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                AppLogger.logAction('GenerateScreen', 'Opening Quotes Picker Sheet');
-                QuotesPickerSheet.show(
-                  context: context,
-                  currentQuote: _currentText,
-                  onQuoteSelected: (selectedQuote) {
-                    _recordHistory();
-                    setState(() {
-                      _currentText = selectedQuote;
-                      _textController.text = selectedQuote;
-                      if (_activeFrame != null) {
-                        _activeFrame = _activeFrame!.copyWith(caption: selectedQuote);
-                        _frameCaptionController.text = selectedQuote;
-                      }
-                    });
-                    AppLogger.logAction('GenerateScreen', 'Quote applied from picker', {'quote': selectedQuote});
-                  },
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text('💬', style: TextStyle(fontSize: 14)),
-                    SizedBox(width: 4),
-                    Text(
-                      'Quotes',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            // Inspire Me Button
+            const SizedBox(width: 8),
             IosBounceButton(
               onTap: _shuffleQuote,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.bratGreen,
                   borderRadius: BorderRadius.circular(12),
@@ -2551,9 +2813,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: const [
                     Text('🎲', style: TextStyle(fontSize: 14)),
-                    SizedBox(width: 4),
+                    SizedBox(width: 6),
                     Text(
-                      'Inspire',
+                      'Inspire Me',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
                     ),
                   ],
@@ -2562,168 +2824,20 @@ class _GenerateScreenState extends State<GenerateScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
 
-        // Google Fonts Browser Bar
-        Row(
-          children: [
-            const Text(
-              'Fonts',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
-            const Spacer(),
-            // All 30+ Google Fonts Button
-            GestureDetector(
-              onTap: () => _openFontPickerSheet(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.search, size: 13, color: AppColors.bratGreen),
-                    SizedBox(width: 4),
-                    Text(
-                      'All 30+ Google Fonts',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
 
-        // Quick Font Chips
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: [
-              'Arial',
-              'Outfit',
-              'Roboto',
-              'Montserrat',
-              'Bebas Neue',
-              'Playfair Display',
-              'Pacifico',
-              'Cinzel',
-              'Dancing Script',
-              'Space Grotesk',
-            ].map((font) {
-              final isSelected = _currentFontFamily == font;
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: _buildChoiceChip(
-                  font == 'Arial' ? 'Brat Sans (Arial)' : font,
-                  isSelected,
-                  () {
-                    _recordHistory();
-                    HapticFeedback.selectionClick();
-                    setState(() {
-                      _currentFontFamily = font;
-                      if (_activeFrame != null) {
-                        _activeFrame = _activeFrame!.copyWith(captionFont: font);
-                      }
-                    });
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Sliders: Size & Spacing
-        Row(
-          children: [
-            const SizedBox(
-              width: 60,
-              child: Text('Size', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-            Expanded(
-              child: Slider(
-                value: _currentFontSize.clamp(12.0, 80.0),
-                min: 12.0,
-                max: 80.0,
-                activeColor: Colors.black,
-                inactiveColor: Colors.black12,
-                onChangeStart: (_) => _recordHistory(),
-                onChanged: (v) => setState(() => _currentFontSize = v),
-              ),
-            ),
-            Text('${_currentFontSize.toInt()} pt', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
-        ),
-        Row(
-          children: [
-            const SizedBox(
-              width: 60,
-              child: Text('Spacing', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-            Expanded(
-              child: Slider(
-                value: _letterSpacing.clamp(-2.0, 8.0),
-                min: -2.0,
-                max: 8.0,
-                activeColor: Colors.black,
-                inactiveColor: Colors.black12,
-                onChangeStart: (_) => _recordHistory(),
-                onChanged: (v) => setState(() => _letterSpacing = v),
-              ),
-            ),
-            Text(_letterSpacing.toStringAsFixed(1), style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Case, Weight & Alignment
-        Row(
-          children: [
-            _buildChoiceChip('lowercase', _currentTextCase == 'lowercase', () {
-              _recordHistory();
-              setState(() => _currentTextCase = 'lowercase');
-            }),
-            const SizedBox(width: 6),
-            _buildChoiceChip('UPPER', _currentTextCase == 'UPPERCASE', () {
-              _recordHistory();
-              setState(() => _currentTextCase = 'UPPERCASE');
-            }),
-            const SizedBox(width: 6),
-            _buildChoiceChip('Normal', _currentTextCase == 'Normal', () {
-              _recordHistory();
-              setState(() => _currentTextCase = 'Normal');
-            }),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.format_align_left, size: 20),
-              color: _currentAlignment == TextAlign.left ? Colors.black : Colors.grey,
-              onPressed: () {
-                _recordHistory();
-                setState(() => _currentAlignment = TextAlign.left);
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.format_align_center, size: 20),
-              color: _currentAlignment == TextAlign.center ? Colors.black : Colors.grey,
-              onPressed: () {
-                _recordHistory();
-                setState(() => _currentAlignment = TextAlign.center);
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.format_align_right, size: 20),
-              color: _currentAlignment == TextAlign.right ? Colors.black : Colors.grey,
-              onPressed: () {
-                _recordHistory();
-                setState(() => _currentAlignment = TextAlign.right);
-              },
-            ),
-          ],
+        // Text Layers Manager List & Active Formatting Controls
+        TextLayersManagerWidget(
+          layers: _textLayers,
+          activeLayerId: _activeTextLayerId,
+          onSelectLayer: (id) => setState(() => _activeTextLayerId = id),
+          onAddLayer: _addTextLayer,
+          onDeleteLayer: _deleteTextLayer,
+          onDuplicateLayer: _duplicateTextLayer,
+          onUpdateLayer: _updateActiveTextLayer,
+          onRecordHistory: _recordHistory,
+          onOpenFontBrowser: () => _openFontPickerSheet(context),
         ),
       ],
     );
@@ -2862,6 +2976,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
                             }
                           } else {
                             _customTextColor = color;
+                            if (_activeTextLayer != null) {
+                              final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayer!.id);
+                              if (idx != -1) {
+                                _textLayers[idx] = _activeTextLayer!.copyWith(textColor: color);
+                              }
+                            }
                             if (_activeFrame != null) {
                               _activeFrame = _activeFrame!.copyWith(captionColor: color);
                             }
@@ -3408,12 +3528,16 @@ class _GenerateScreenState extends State<GenerateScreen> {
                               onTap: () {
                                 HapticFeedback.selectionClick();
                                 _recordHistory();
-                                setState(() {
-                                  _currentFontFamily = font;
-                                  if (_activeFrame != null) {
-                                    _activeFrame = _activeFrame!.copyWith(captionFont: font);
-                                  }
-                                });
+                                if (_activeTextLayer != null) {
+                                  _updateActiveTextLayer(_activeTextLayer!.copyWith(fontFamily: font));
+                                } else {
+                                  setState(() {
+                                    _currentFontFamily = font;
+                                    if (_activeFrame != null) {
+                                      _activeFrame = _activeFrame!.copyWith(captionFont: font);
+                                    }
+                                  });
+                                }
                                 Navigator.pop(ctx);
                               },
                             );
@@ -4201,6 +4325,8 @@ class EditorSnapshot {
   final BoxFit photoFit;
   final FrameTemplate? activeFrame;
   final String frameCaption;
+  final List<TextLayerModel>? textLayers;
+  final String? activeTextLayerId;
 
   EditorSnapshot({
     required this.text,
@@ -4232,6 +4358,8 @@ class EditorSnapshot {
     this.photoFit = BoxFit.cover,
     this.activeFrame,
     required this.frameCaption,
+    this.textLayers,
+    this.activeTextLayerId,
   });
 }
 

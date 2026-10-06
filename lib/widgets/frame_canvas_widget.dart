@@ -23,6 +23,7 @@ class FrameCanvasWidget extends StatelessWidget {
   final bool flipVertical;
   final BoxFit photoFit;
   final bool showFloatingControls;
+  final bool showCaption;
   final StudioEffectsModel? studioEffects;
   final List<XFile?>? imageFiles;
   final Function(int slotIndex)? onPickSlotImage;
@@ -46,6 +47,7 @@ class FrameCanvasWidget extends StatelessWidget {
     this.flipVertical = false,
     this.photoFit = BoxFit.cover,
     this.showFloatingControls = true,
+    this.showCaption = true,
     this.studioEffects,
     this.imageFiles,
     this.onPickSlotImage,
@@ -227,7 +229,7 @@ class FrameCanvasWidget extends StatelessWidget {
                 ),
 
               // Bottom/Top Frame Caption & Deluxe Subtext
-              if (frame.caption.isNotEmpty && frame.overlayType != FrameOverlayType.retroWindow)
+              if (showCaption && frame.caption.isNotEmpty && frame.overlayType != FrameOverlayType.retroWindow)
                 Align(
                   alignment: frame.captionAlignment,
                   child: Padding(
