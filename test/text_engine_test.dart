@@ -114,6 +114,7 @@ void main() {
 
       expect(lastOffset.dx, isNot(0.5));
       expect(lastOffset.dy, isNot(0.5));
+      expect(selectedId, 'l1');
     });
 
     testWidgets('Hides selection badges when isExporting is true', (tester) async {
@@ -227,6 +228,14 @@ void main() {
       await tester.tap(upperChip);
       await tester.pumpAndSettle();
       expect(updatedModel?.textCase, 'UPPERCASE');
+
+      // Tap delete button on first card
+      final deleteIcons = find.byIcon(Icons.delete_outline);
+      if (deleteIcons.evaluate().isNotEmpty) {
+        await tester.tap(deleteIcons.first);
+        await tester.pumpAndSettle();
+        expect(deletedId, 't1');
+      }
     });
   });
 }

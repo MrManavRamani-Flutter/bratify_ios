@@ -3320,39 +3320,39 @@ class _GenerateScreenState extends State<GenerateScreen> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Row(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _openImageCropAndAdjustDialog(slotIndex: _activePhotoSlot),
-                              icon: const Icon(Icons.crop_rotate_rounded, size: 14),
-                              label: const Text('Crop & Adjust', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
+                          ElevatedButton.icon(
+                            onPressed: () => _openImageCropAndAdjustDialog(slotIndex: _activePhotoSlot),
+                            icon: const Icon(Icons.crop_rotate_rounded, size: 14),
+                            label: const Text('Crop & Adjust', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
-                              icon: const Icon(Icons.swap_horiz_rounded, size: 14),
-                              label: const Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.black87,
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
+                          OutlinedButton.icon(
+                            onPressed: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
+                            icon: const Icon(Icons.swap_horiz_rounded, size: 14),
+                            label: const Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
-                          const SizedBox(width: 4),
                           IconButton(
                             onPressed: () => _deletePhotoSlot(_activePhotoSlot),
                             icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                            visualDensity: VisualDensity.compact,
                             tooltip: 'Delete Photo',
                           ),
                         ],
@@ -4137,16 +4137,23 @@ class _GenerateScreenState extends State<GenerateScreen> {
         const SizedBox(height: 5),
 
         // Hint for interactive gestures
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.touch_app_rounded, size: 12, color: Colors.black45),
-            SizedBox(width: 4),
-            Text(
-              'Drag photo on canvas to position • Pinch to scale',
-              style: TextStyle(fontSize: 10.5, color: Colors.black45, fontWeight: FontWeight.w600),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.touch_app_rounded, size: 12, color: Colors.black45),
+                SizedBox(width: 4),
+                Text(
+                  'Drag photo on canvas to position • Pinch to scale',
+                  style: TextStyle(fontSize: 10.5, color: Colors.black45, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ],
     );

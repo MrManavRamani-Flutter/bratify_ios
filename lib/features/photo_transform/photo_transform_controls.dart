@@ -23,91 +23,95 @@ class PhotoTransformControls extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 1. Quick Transform Bar: 90° Rotate, Flip H, Flip V, Reset
-        Row(
-          children: [
-            // Rotate 90° CW
-            _buildActionButton(
-              icon: Icons.rotate_right_rounded,
-              label: '+90°',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                final newQuarter = (state.rotationQuarter + 1) % 4;
-                AppLogger.logAction('PhotoTransform', 'Rotate 90° CW', {'quarter': newQuarter});
-                onChanged(state.copyWith(rotationQuarter: newQuarter));
-              },
-            ),
-            const SizedBox(width: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              // Rotate 90° CW
+              _buildActionButton(
+                icon: Icons.rotate_right_rounded,
+                label: '+90°',
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  final newQuarter = (state.rotationQuarter + 1) % 4;
+                  AppLogger.logAction('PhotoTransform', 'Rotate 90° CW', {'quarter': newQuarter});
+                  onChanged(state.copyWith(rotationQuarter: newQuarter));
+                },
+              ),
+              const SizedBox(width: 6),
 
-            // Rotate 90° CCW
-            _buildActionButton(
-              icon: Icons.rotate_left_rounded,
-              label: '-90°',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                final newQuarter = (state.rotationQuarter + 3) % 4;
-                AppLogger.logAction('PhotoTransform', 'Rotate 90° CCW', {'quarter': newQuarter});
-                onChanged(state.copyWith(rotationQuarter: newQuarter));
-              },
-            ),
-            const SizedBox(width: 8),
+              // Rotate 90° CCW
+              _buildActionButton(
+                icon: Icons.rotate_left_rounded,
+                label: '-90°',
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  final newQuarter = (state.rotationQuarter + 3) % 4;
+                  AppLogger.logAction('PhotoTransform', 'Rotate 90° CCW', {'quarter': newQuarter});
+                  onChanged(state.copyWith(rotationQuarter: newQuarter));
+                },
+              ),
+              const SizedBox(width: 6),
 
-            // Flip Horizontal
-            _buildActionButton(
-              icon: Icons.flip_rounded,
-              label: 'Flip H',
-              isActive: state.flipHorizontal,
-              onTap: () {
-                HapticFeedback.lightImpact();
-                final newFlip = !state.flipHorizontal;
-                AppLogger.logAction('PhotoTransform', 'Toggle Flip H', {'flipH': newFlip});
-                onChanged(state.copyWith(flipHorizontal: newFlip));
-              },
-            ),
-            const SizedBox(width: 8),
+              // Flip Horizontal
+              _buildActionButton(
+                icon: Icons.flip_rounded,
+                label: 'Flip H',
+                isActive: state.flipHorizontal,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  final newFlip = !state.flipHorizontal;
+                  AppLogger.logAction('PhotoTransform', 'Toggle Flip H', {'flipH': newFlip});
+                  onChanged(state.copyWith(flipHorizontal: newFlip));
+                },
+              ),
+              const SizedBox(width: 6),
 
-            // Flip Vertical
-            _buildActionButton(
-              icon: Icons.swap_vert_rounded,
-              label: 'Flip V',
-              isActive: state.flipVertical,
-              onTap: () {
-                HapticFeedback.lightImpact();
-                final newFlip = !state.flipVertical;
-                AppLogger.logAction('PhotoTransform', 'Toggle Flip V', {'flipV': newFlip});
-                onChanged(state.copyWith(flipVertical: newFlip));
-              },
-            ),
-            const Spacer(),
+              // Flip Vertical
+              _buildActionButton(
+                icon: Icons.swap_vert_rounded,
+                label: 'Flip V',
+                isActive: state.flipVertical,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  final newFlip = !state.flipVertical;
+                  AppLogger.logAction('PhotoTransform', 'Toggle Flip V', {'flipV': newFlip});
+                  onChanged(state.copyWith(flipVertical: newFlip));
+                },
+              ),
+              const SizedBox(width: 8),
 
-            // Reset Transforms
-            IosBounceButton(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                AppLogger.logAction('PhotoTransform', 'Reset all transforms');
-                if (onReset != null) {
-                  onReset!();
-                } else {
-                  onChanged(const PhotoTransformState());
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-                ),
-                child: const Text(
-                  'Reset',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.redAccent,
+              // Reset Transforms
+              IosBounceButton(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  AppLogger.logAction('PhotoTransform', 'Reset all transforms');
+                  if (onReset != null) {
+                    onReset!();
+                  } else {
+                    onChanged(const PhotoTransformState());
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                  ),
+                  child: const Text(
+                    'Reset',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.redAccent,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
 
         const SizedBox(height: 12),
