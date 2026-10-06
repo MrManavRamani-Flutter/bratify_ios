@@ -4,22 +4,17 @@ import 'package:brat_generator/screens/splash_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Verify 500 predefined frames across 10 categories (50 each)', () {
-    expect(predefined500Frames.length, 500);
+  test('Verify custom frame layout presets are available for DIY frame creation', () {
+    expect(customFrameLayoutPresets.isNotEmpty, true);
+    expect(customFrameLayoutPresets.length, 8);
 
-    final Map<String, int> categoryCounts = {};
-    for (final frame in predefined500Frames) {
-      categoryCounts[frame.category] = (categoryCounts[frame.category] ?? 0) + 1;
-    }
-
-    expect(categoryCounts.keys.length, 10);
-    for (final entry in categoryCounts.entries) {
-      expect(
-        entry.value,
-        50,
-        reason: 'Category "${entry.key}" should have exactly 50 templates',
-      );
-    }
+    // Verify key layout structures are present
+    final layoutNames = customFrameLayoutPresets.map((f) => f.name).toList();
+    expect(layoutNames.contains('Classic Single'), true);
+    expect(layoutNames.contains('Polaroid Card'), true);
+    expect(layoutNames.contains('Split Duo (H)'), true);
+    expect(layoutNames.contains('Split Duo (V)'), true);
+    expect(layoutNames.contains('Grid 4 Collage'), true);
   });
 
   testWidgets('App launches with SplashScreen', (WidgetTester tester) async {

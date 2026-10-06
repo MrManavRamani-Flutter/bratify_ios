@@ -107,9 +107,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Should show 'Templates' back button
-      expect(find.text('Templates'), findsOneWidget);
-      expect(find.text('Post Editor'), findsOneWidget);
+      // Should show 'Studio' back button
+      expect(find.text('Studio'), findsOneWidget);
+      expect(find.text('Custom Frame'), findsWidgets);
       // In dedicated edit screen, the redundant bottom trending frames showcase should be hidden
       expect(find.text('TRENDING AESTHETIC FRAMES'), findsNothing);
     });

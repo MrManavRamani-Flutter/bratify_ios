@@ -380,7 +380,7 @@ class FrameCanvasWidget extends StatelessWidget {
         return Row(
           children: [
             Expanded(child: _buildSinglePhotoSlot(context, 0, getFile(0))),
-            Container(width: 3, color: frame.borderColor.withValues(alpha: 0.6)),
+            SizedBox(width: frame.slotSpacing),
             Expanded(child: _buildSinglePhotoSlot(context, 1, getFile(1))),
           ],
         );
@@ -389,7 +389,7 @@ class FrameCanvasWidget extends StatelessWidget {
         return Column(
           children: [
             Expanded(child: _buildSinglePhotoSlot(context, 0, getFile(0))),
-            Container(height: 3, color: frame.borderColor.withValues(alpha: 0.6)),
+            SizedBox(height: frame.slotSpacing),
             Expanded(child: _buildSinglePhotoSlot(context, 1, getFile(1))),
           ],
         );
@@ -399,7 +399,7 @@ class FrameCanvasWidget extends StatelessWidget {
           children: [
             Expanded(
               child: Container(
-                margin: const EdgeInsets.all(3),
+                margin: EdgeInsets.all(frame.slotSpacing * 0.5),
                 padding: const EdgeInsets.fromLTRB(4, 4, 4, 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -411,7 +411,7 @@ class FrameCanvasWidget extends StatelessWidget {
             ),
             Expanded(
               child: Container(
-                margin: const EdgeInsets.all(3),
+                margin: EdgeInsets.all(frame.slotSpacing * 0.5),
                 padding: const EdgeInsets.fromLTRB(4, 4, 4, 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -428,9 +428,9 @@ class FrameCanvasWidget extends StatelessWidget {
         return Row(
           children: [
             Expanded(child: _buildSinglePhotoSlot(context, 0, getFile(0))),
-            const SizedBox(width: 3),
+            SizedBox(width: frame.slotSpacing),
             Expanded(child: _buildSinglePhotoSlot(context, 1, getFile(1))),
-            const SizedBox(width: 3),
+            SizedBox(width: frame.slotSpacing),
             Expanded(child: _buildSinglePhotoSlot(context, 2, getFile(2))),
           ],
         );
@@ -439,9 +439,9 @@ class FrameCanvasWidget extends StatelessWidget {
         return Column(
           children: [
             Expanded(child: _buildSinglePhotoSlot(context, 0, getFile(0))),
-            const SizedBox(height: 4),
+            SizedBox(height: frame.slotSpacing),
             Expanded(child: _buildSinglePhotoSlot(context, 1, getFile(1))),
-            const SizedBox(height: 4),
+            SizedBox(height: frame.slotSpacing),
             Expanded(child: _buildSinglePhotoSlot(context, 2, getFile(2))),
           ],
         );
@@ -453,17 +453,17 @@ class FrameCanvasWidget extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(child: _buildSinglePhotoSlot(context, 0, getFile(0))),
-                  const SizedBox(width: 3),
+                  SizedBox(width: frame.slotSpacing),
                   Expanded(child: _buildSinglePhotoSlot(context, 1, getFile(1))),
                 ],
               ),
             ),
-            const SizedBox(height: 3),
+            SizedBox(height: frame.slotSpacing),
             Expanded(
               child: Row(
                 children: [
                   Expanded(child: _buildSinglePhotoSlot(context, 2, getFile(2))),
-                  const SizedBox(width: 3),
+                  SizedBox(width: frame.slotSpacing),
                   Expanded(child: _buildSinglePhotoSlot(context, 3, getFile(3))),
                 ],
               ),

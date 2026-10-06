@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../constants/app_colors.dart';
 import '../models/frame_model.dart';
@@ -11,9 +10,9 @@ import '../services/app_update_service.dart';
 import '../services/database_service.dart';
 import '../widgets/app_svg_icon.dart';
 import 'generate_screen.dart';
-import 'quotes_screen.dart';
+import 'home_screen.dart';
 import 'save_screen.dart';
-import 'templates_screen.dart';
+import 'settings/settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -24,10 +23,6 @@ class MainScreen extends StatefulWidget {
 
 class MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  MemeDesign? initialDesign;
-  FrameTemplate? selectedFrame;
-  XFile? selectedPhoto;
-  String? selectedQuote;
   List<MemeDesign> savedMemes = [];
 
   static const _overlayStyle = SystemUiOverlayStyle(
@@ -61,11 +56,24 @@ class MainScreenState extends State<MainScreen> {
     }
   }
 
-  void onMemeSelected(MemeDesign meme) {
-    setState(() {
-      initialDesign = meme;
-      _selectedIndex = 1;
+  void openEditor({FrameTemplate? frame, MemeDesign? design}) {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => GenerateScreen(
+          initialFrame: frame ?? defaultCustomFrame,
+          initialDesign: design,
+          isDedicatedEditScreen: true,
+        ),
+      ),
+    ).then((_) {
+      loadSavedMemes();
     });
+  }
+
+  void onMemeSelected(MemeDesign meme) {
+    openEditor(design: meme);
   }
 
   void _onItemTapped(int index) {
@@ -84,65 +92,15 @@ class MainScreenState extends State<MainScreen> {
         body: IndexedStack(
           index: _selectedIndex,
           children: [
-            TemplatesScreen(
-              onSelectTemplate: (frame) {
-                setState(() {
-                  selectedFrame = frame;
-                  selectedPhoto = null;
-                  _selectedIndex = 1;
-                });
-              },
-              onSelectTemplateWithPhoto: (frame, photo) {
-                setState(() {
-                  selectedFrame = frame;
-                  selectedPhoto = photo;
-                  _selectedIndex = 1;
-                });
-              },
-              onOpenBlankStudio: () {
-                setState(() {
-                  selectedFrame = null;
-                  selectedPhoto = null;
-                  initialDesign = null;
-                  _selectedIndex = 1;
-                });
-              },
-            ),
-            GenerateScreen(
-              initialDesign: initialDesign,
-              initialFrame: selectedFrame,
-              initialText: selectedQuote,
-              initialImage: selectedPhoto,
-              onReset: (meme) {
-                setState(() {
-                  initialDesign = null;
-                  selectedFrame = null;
-                  selectedPhoto = null;
-                  selectedQuote = null;
-                });
-              },
-              onBackToHome: () {
-                setState(() {
-                  _selectedIndex = 0;
-                });
-              },
-            ),
-            QuotesScreen(
-              onSelectQuote: (quote) {
-                setState(() {
-                  selectedQuote = quote;
-                  _selectedIndex = 1;
-                });
-              },
+            HomeScreen(
+              onOpenLibrary: () => _onItemTapped(1),
             ),
             SaveScreen(
               onEditSelected: (MemeDesign meme) {
-                setState(() {
-                  initialDesign = meme;
-                  _selectedIndex = 1;
-                });
+                openEditor(design: meme);
               },
             ),
+            const SettingScreen(),
           ],
         ),
         bottomNavigationBar: buildBottomNavigationBar(context),
@@ -154,23 +112,20 @@ class MainScreenState extends State<MainScreen> {
     final isTab = context.isTablet;
 
     final tabs = [
-      _NavTabItem(
-        title: '500 Frames',
-        icon: Icons.dashboard_customize_rounded,
-      ),
-      _NavTabItem(
+      const _NavTabItem(
         title: 'Studio',
         icon: Icons.auto_awesome_rounded,
         assetSvg: 'assets/svg/generate.svg',
       ),
-      _NavTabItem(
-        title: 'Viral Quotes',
-        icon: Icons.format_quote_rounded,
-      ),
-      _NavTabItem(
+      const _NavTabItem(
         title: 'Library',
         icon: Icons.bookmark_rounded,
         assetSvg: 'assets/svg/save.svg',
+      ),
+      const _NavTabItem(
+        title: 'Settings',
+        icon: Icons.settings_rounded,
+        assetSvg: 'assets/svg/settings.svg',
       ),
     ];
 
@@ -200,7 +155,7 @@ class MainScreenState extends State<MainScreen> {
             constraints: BoxConstraints(maxWidth: isTab ? 600 : double.infinity),
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: isTab ? 20 : 8,
+                horizontal: isTab ? 24 : 12,
                 vertical: 6,
               ),
               child: Row(
@@ -211,12 +166,7 @@ class MainScreenState extends State<MainScreen> {
 
                   return Expanded(
                     child: IosBounceButton(
-                      onTap: () {
-                        if (index == 3) {
-                          initialDesign = null;
-                        }
-                        _onItemTapped(index);
-                      },
+                      onTap: () => _onItemTapped(index),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,

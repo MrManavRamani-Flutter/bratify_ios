@@ -11,10 +11,10 @@ import 'package:brat_generator/constants/app_colors.dart';
 import 'package:brat_generator/features/frames/frame_preflight_sheet.dart';
 import 'package:brat_generator/models/frame_model.dart';
 import 'package:brat_generator/screens/generate_screen.dart';
+import 'package:brat_generator/screens/home_screen.dart';
 import 'package:brat_generator/screens/onboarding_screen.dart';
 import 'package:brat_generator/screens/save_screen.dart';
 import 'package:brat_generator/screens/settings/settings_screen.dart';
-import 'package:brat_generator/screens/templates_screen.dart';
 import 'package:brat_generator/widgets/frame_canvas_widget.dart';
 
 /// Capture widget wrapped with RepaintBoundary and write PNG bytes to disk
@@ -164,8 +164,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.byType(GenerateScreen), findsOneWidget);
-      expect(find.text('500 Frames'), findsAtLeastNWidgets(1));
-      expect(find.text('TRENDING AESTHETIC FRAMES'), findsOneWidget);
+      expect(find.text('Layout & Slots'), findsOneWidget);
+      expect(find.text('Borders & Corners'), findsOneWidget);
 
       await _captureAndSavePng(
         tester: tester,
@@ -183,7 +183,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final key = GlobalKey();
-      final testFrame = predefined500Frames[50]; // Polaroid 600
+      final testFrame = customFrameLayoutPresets[0]; // Single 1 Photo
 
       await tester.pumpWidget(
         _wrapWithPhoneFrame(
@@ -232,7 +232,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
     });
 
-    testWidgets('4. Capture Screen: 500+ Aesthetic Templates Library',
+    testWidgets('4. Capture Screen: Studio Hub & Frame Creator Dashboard',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1179, 2556);
       tester.view.devicePixelRatio = 3.0;
@@ -242,14 +242,14 @@ void main() {
       final key = GlobalKey();
       await tester.pumpWidget(
         _wrapWithPhoneFrame(
-          TemplatesScreen(onSelectTemplateWithPhoto: (_, __) {}),
+          HomeScreen(onOpenLibrary: () {}),
           captureKey: key,
         ),
       );
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.byType(TemplatesScreen), findsOneWidget);
-      expect(find.text('500 AESTHETIC FRAMES'), findsOneWidget);
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.text('Design Custom Frame'), findsOneWidget);
 
       await _captureAndSavePng(
         tester: tester,
@@ -396,7 +396,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final key = GlobalKey();
-      final polaroidFrame = predefined500Frames[50].copyWith(
+      final polaroidFrame = customFrameLayoutPresets[1].copyWith(
         caption: 'endless summer memories • august 2024',
       );
 
@@ -433,7 +433,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('Post 3: Y2K Cyber Digicam ISO Viewfinder Post',
+    testWidgets('Post 3: Split Duo Horizontal Collage Post',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(900, 1600);
       tester.view.devicePixelRatio = 1.0;
@@ -441,7 +441,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final key = GlobalKey();
-      final digicamFrame = predefined500Frames[100].copyWith(
+      final digicamFrame = customFrameLayoutPresets[2].copyWith(
         caption: 'CLUB CLASSICS • TOKYO LIVE',
       );
 
@@ -478,7 +478,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('Post 4: Spotify Aesthetic Music Player Post',
+    testWidgets('Post 4: Split Duo Vertical Frame Post',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1000, 1000);
       tester.view.devicePixelRatio = 1.0;
@@ -486,7 +486,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final key = GlobalKey();
-      final musicFrame = predefined500Frames[150].copyWith(
+      final musicFrame = customFrameLayoutPresets[3].copyWith(
         caption: 'Von Dutch — Charli XCX (Brat Album)',
       );
 
@@ -523,7 +523,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
     });
 
-    testWidgets('Post 5: Retro 90s Windows Dialog Post',
+    testWidgets('Post 5: 4 Photo Grid Collage Frame Post',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1000, 1000);
       tester.view.devicePixelRatio = 1.0;
@@ -531,11 +531,9 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final key = GlobalKey();
-      final retroFrame = predefined500Frames
-          .firstWhere((f) => f.overlayType == FrameOverlayType.retroWindow)
-          .copyWith(
-            caption: 'SYSTEM_ERROR.EXE: Too iconic to handle',
-          );
+      final gridFrame = customFrameLayoutPresets[4].copyWith(
+        caption: 'SYSTEM_ERROR.EXE: Too iconic to handle',
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -549,7 +547,7 @@ void main() {
                   width: 480,
                   height: 480,
                   child: FrameCanvasWidget(
-                    frame: retroFrame,
+                    frame: gridFrame,
                     imageFile: null,
                     onPickImage: () {},
                     showFloatingControls: false,

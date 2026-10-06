@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('FramePreflightSheet renders requirements checklist and CTA buttons',
       (WidgetTester tester) async {
-    final testFrame = predefined500Frames[50]; // Polaroid 600
+    final testFrame = predefined500Frames[3]; // Polaroid Preset
 
     bool proceedCalled = false;
 

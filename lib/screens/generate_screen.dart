@@ -13,12 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../constants/app_colors.dart';
-import '../constants/app_strings.dart';
-import '../features/frames/frames_catalog_sheet.dart';
-import '../features/photo_transform/photo_transform_controls.dart';
 import '../features/photo_transform/photo_transform_model.dart';
-import '../features/frames/frame_preflight_sheet.dart';
-import '../features/quotes/quotes_picker_sheet.dart';
 import '../features/studio_effects/studio_effects_model.dart';
 import '../features/studio_effects/studio_effects_sheet.dart';
 import '../models/frame_model.dart';
@@ -27,7 +22,6 @@ import '../models/text_layer_model.dart';
 import '../my_app.dart';
 import '../services/database_service.dart';
 import '../services/logger_service.dart';
-import '../widgets/app_bar_widget.dart';
 import '../widgets/app_svg_icon.dart';
 import '../widgets/frame_canvas_widget.dart';
 import '../widgets/interactive_text_overlay.dart';
@@ -86,9 +80,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
     }
   }
 
-  // Active Frame System (500 Predefined & Customizable Frames across 10 Categories)
+  // Active Frame System
   FrameTemplate? _activeFrame;
-  String _selectedFrameCategory = 'All (500)';
 
   // Core canvas state
   String _currentText = "brat";
@@ -278,62 +271,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
   // Database tracking
   int? _existingMemeId;
 
-  // 10 Distinct Categories with 50 Templates each (Total 500 Templates)
-  static const List<String> _frameCategories = [
-    'All (500)',
-    '🍏 Brat & Album',
-    '📸 Polaroid & Vintage',
-    '🎞️ Y2K & Digicam',
-    '🎵 Music & Audio',
-    '✨ Acid & Rave Neon',
-    '🖤 Minimal & Editorial',
-    '📐 Collage, Strips & Stamps',
-    '💬 Quotes & Viral Memes',
-    '🌈 Pastel & Moodboard',
-    '⚡ Social Story & Reels',
-  ];
-
-  // Curated viral quotes
-  static const List<String> _viralQuotes = [
-    "brat",
-    "365 partygirl",
-    "so transparent",
-    "everything is romantic",
-    "sympathy is a knife",
-    "rewind",
-    "von dutch",
-    "talk talk",
-    "i might say something stupid",
-    "guess",
-    "girl, so confusing",
-    "apple",
-    "b2b",
-    "mean girls",
-    "spring breakers",
-    "it's brat summer",
-    "hot girl bummer",
-    "certified lover girl",
-    "delusional in the best way",
-    "unhinged and thriving",
-    "main character energy",
-    "too iconic to care",
-    "it's giving brat",
-    "club classic",
-    "i think about it all the time",
-    "dialing that number",
-    "angels in the club",
-    "doing it for the plot",
-    "born to party",
-    "overthinking everything",
-    "brat and boujee",
-    "it's okay to cry",
-    "always chaotic",
-    "living rent free",
-    "no thoughts head empty",
-  ];
-
-  int _colorTarget = 0; // 0: Background Color, 1: Text Color
-
   static const List<String> _fontFamilies = [
     'Arial',
     'Outfit',
@@ -370,27 +307,24 @@ class _GenerateScreenState extends State<GenerateScreen> {
   @override
   void initState() {
     super.initState();
-    _activeFrame = widget.initialFrame;
-    if (_activeFrame != null) {
-      _frameCaptionController.text = _activeFrame?.caption ?? '';
-      _aspectRatio = _activeFrame!.aspectRatio;
-      _syncPhotoSlots();
-    }
+    _activeFrame = widget.initialFrame ?? defaultCustomFrame;
+    _frameCaptionController.text = _activeFrame?.caption ?? '';
+    _aspectRatio = _activeFrame!.aspectRatio;
+    _syncPhotoSlots();
+
     final initialTextStr = (widget.initialText != null && widget.initialText!.isNotEmpty)
         ? widget.initialText!
         : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : _currentText);
     _currentText = initialTextStr;
-    if (_activeFrame != null) {
-      _activeFrame = _activeFrame!.copyWith(caption: _currentText);
-      _frameCaptionController.text = _currentText;
-    }
+    _activeFrame = _activeFrame!.copyWith(caption: _currentText);
+    _frameCaptionController.text = _currentText;
     _textController.text = _currentText;
     _textLayers = [
       TextLayerModel(
         id: 'layer_1',
         text: _currentText,
         fontFamily: _activeFrame?.captionFont ?? _currentFontFamily,
-        fontSize: _activeFrame != null ? _activeFrame!.captionSize.clamp(14.0, 72.0) : _currentFontSize,
+        fontSize: _activeFrame!.captionSize.clamp(14.0, 72.0),
         fontWeight: _currentFontWeight,
         textColor: _activeFrame?.captionColor ?? _getEffectiveTextColor(),
         textAlign: _currentAlignment,
@@ -398,7 +332,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
         lineHeight: 1.05,
         textCase: _currentTextCase,
         blurSigma: _blurSigma,
-        offset: _activeFrame != null ? const Offset(0.5, 0.88) : const Offset(0.5, 0.5),
+        offset: const Offset(0.5, 0.88),
       ),
     ];
     _activeTextLayerId = 'layer_1';
@@ -406,10 +340,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
     if (widget.initialImage != null) {
       _selectedImage = widget.initialImage;
       _syncPhotoSlots();
-      _selectedTab = 4; // Photo & Filters tab
-    } else if (widget.isDedicatedEditScreen) {
-      _selectedTab = 1; // Default to Text & Fonts tab in dedicated edit screen
     }
+    _selectedTab = 0; // Default to Tab 0: Layout & Slots
 
     _initializeDesign();
     _textController.addListener(_onTextChange);
@@ -763,177 +695,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
     );
   }
 
-  void _selectFrame(FrameTemplate frame) {
-    _recordHistory();
-    HapticFeedback.lightImpact();
-    setState(() {
-      _activeFrame = frame;
-      _aspectRatio = frame.aspectRatio;
-      _frameCaptionController.text = frame.caption;
-      _hasFilmGrain = frame.hasFilmGrain;
-      _syncPhotoSlots();
-    });
-  }
 
-  List<FrameTemplate> get _featuredFrames {
-    return [
-      predefined500Frames[0], // Brat Classic Album
-      predefined500Frames[50], // Aesthetic Polaroid 600
-      predefined500Frames[100], // Digicam ISO 400
-      predefined500Frames[150], // Spotify Music Player
-      predefined500Frames[200], // Acid Rave Lime
-      predefined500Frames[250], // Minimal Vogue Editorial
-      predefined500Frames[300], // Vintage Filmstrip 35mm
-      predefined500Frames[350], // Viral Quote Card
-      predefined500Frames[400], // Pastel Moodboard
-      predefined500Frames[450], // 9:16 Social Story Neon
-    ];
-  }
 
-  void _openFramePreflight(FrameTemplate frame) {
-    HapticFeedback.lightImpact();
-    FramePreflightSheet.show(
-      context: context,
-      frame: frame,
-      onProceed: (selectedFrame, photo) {
-        _recordHistory();
-        setState(() {
-          _activeFrame = selectedFrame;
-          _frameCaptionController.text = selectedFrame.caption;
-          _aspectRatio = selectedFrame.aspectRatio;
-          _hasFilmGrain = selectedFrame.hasFilmGrain;
-          _syncPhotoSlots();
-          if (photo != null) {
-            _selectedImage = photo;
-            if (_selectedImages.isNotEmpty) {
-              _selectedImages[0] = photo;
-            }
-            _photoScale = 1.0;
-            _photoOffset = Offset.zero;
-            _photoRotation = 0;
-            _customAngleDegrees = 0.0;
-            _flipHorizontal = false;
-            _flipVertical = false;
-            _photoFit = BoxFit.cover;
-            _selectedTab = 4; // Photo & Filters tab
-          }
-        });
 
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: const Color(0xff18181B),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: AppColors.bratGreen, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    photo != null
-                        ? 'Photo loaded in "${selectedFrame.name}"! Use controls to arrange.'
-                        : 'Template "${selectedFrame.name}" applied!',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      },
-    );
-  }
-
-  void _openQuotesPickerSheet() {
-    HapticFeedback.lightImpact();
-    AppLogger.logAction('GenerateScreen', 'Opening Quotes Picker Sheet');
-    QuotesPickerSheet.show(
-      context: context,
-      currentQuote: _currentText,
-      onQuoteSelected: (selectedQuote) {
-        _recordHistory();
-        setState(() {
-          _currentText = selectedQuote;
-          _textController.text = selectedQuote;
-          if (_activeFrame != null) {
-            _activeFrame = _activeFrame!.copyWith(caption: selectedQuote);
-            _frameCaptionController.text = selectedQuote;
-          }
-        });
-      },
-    );
-  }
-
-  void _inspireMeFull() {
-    _recordHistory();
-    HapticFeedback.mediumImpact();
-    final rand = Random();
-    final randomFrame = predefined500Frames[rand.nextInt(predefined500Frames.length)];
-    final randomQuote = _viralQuotes[rand.nextInt(_viralQuotes.length)];
-    setState(() {
-      _activeFrame = randomFrame;
-      _aspectRatio = randomFrame.aspectRatio;
-      _currentText = randomQuote;
-      _textController.text = randomQuote;
-      _frameCaptionController.text = randomQuote;
-      _hasFilmGrain = randomFrame.hasFilmGrain;
-      if (_textLayers.isNotEmpty) {
-        final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
-        if (idx != -1) {
-          _textLayers[idx] = _textLayers[idx].copyWith(text: randomQuote);
-        } else {
-          _textLayers[0] = _textLayers[0].copyWith(text: randomQuote);
-        }
-      }
-    });
-
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.black87,
-        content: Row(
-          children: [
-            const Icon(Icons.auto_awesome_rounded, color: AppColors.bratGreen, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Inspired: "${randomFrame.name}" with quote "$randomQuote"!',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _shuffleQuote() {
-    _recordHistory();
-    HapticFeedback.lightImpact();
-    final random = Random();
-    final newQuote = _viralQuotes[random.nextInt(_viralQuotes.length)];
-    setState(() {
-      _currentText = newQuote;
-      _textController.text = newQuote;
-      if (_textLayers.isNotEmpty) {
-        final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
-        if (idx != -1) {
-          _textLayers[idx] = _textLayers[idx].copyWith(text: newQuote);
-        } else {
-          _textLayers[0] = _textLayers[0].copyWith(text: newQuote);
-        }
-      }
-      if (_activeFrame != null) {
-        _activeFrame = _activeFrame!.copyWith(caption: newQuote);
-        _frameCaptionController.text = newQuote;
-      }
-    });
-  }
 
   Color _getEffectiveBgColor() {
     if (_isTransparentBg) return Colors.transparent;
@@ -1010,9 +774,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
     }
   }
 
-  Future<void> _pickPhoto({ImageSource source = ImageSource.gallery}) async {
-    return _pickPhotoForSlot(0, source: source);
-  }
+
 
   Future<void> _pickPhotoForSlot(int slotIndex, {ImageSource source = ImageSource.gallery}) async {
     HapticFeedback.lightImpact();
@@ -1650,14 +1412,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
       ),
       child: Row(
         children: [
-          // Back button to Templates
+          // Back button to Studio
           IosBounceButton(
             onTap: () {
               HapticFeedback.lightImpact();
-              if (widget.onBackToHome != null) {
-                widget.onBackToHome!();
-              } else if (Navigator.canPop(context)) {
+              if (Navigator.canPop(context)) {
                 Navigator.pop(context);
+              } else if (widget.onBackToHome != null) {
+                widget.onBackToHome!();
               }
             },
             child: Container(
@@ -1673,7 +1435,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   const Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: Colors.black87),
                   const SizedBox(width: 4),
                   Text(
-                    'Templates',
+                    'Studio',
                     style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -1693,7 +1455,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  _activeFrame != null ? _activeFrame!.name : 'Post Editor',
+                  _activeFrame != null ? _activeFrame!.name : 'Custom Frame Studio',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
@@ -1790,19 +1552,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
           child: SafeArea(
             child: Column(
               children: [
-                // Top App Bar: Dedicated Edit Bar vs Main Tab Bar
-                if (widget.isDedicatedEditScreen)
-                  _buildEditScreenAppBar(context, isTab)
-                else
-                  CustomRowWidget(
-                    centerText: AppStrings.appTitle,
-                    isLeft: false,
-                    isRightKing: false,
-                    isRightSetting: true,
-                    isRightMore: true,
-                    onNew: _resetToDefault,
-                    onReset: _resetToDefault,
-                  ),
+                // Top App Bar: Always Dedicated Edit Bar with Back button
+                _buildEditScreenAppBar(context, isTab),
 
                 // Main Content Body (Adaptive & Scrollable)
                 Expanded(
@@ -1818,13 +1569,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // 0. Quick Controls: Undo, Redo, Reset, Mode Badge (When not dedicated edit screen)
-                            if (!widget.isDedicatedEditScreen) ...[
-                              _buildHistoryControlsBar(isTab),
-                              const SizedBox(height: 8),
-                              _buildQuickActionHub(isTab),
-                              const SizedBox(height: 10),
-                            ],
 
                             // 1. Live Studio Canvas Preview (Either Frame or Classic Text Canvas)
                             Center(
@@ -1897,12 +1641,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
                             // 2. Action Bar (Save Library, Photos, Share)
                             _buildExportActionBar(context, isTab),
-
-                            if (!widget.isDedicatedEditScreen) ...[
-                              const SizedBox(height: 12),
-                              // 2.5 Featured & Trending Frames Showcase (Directly on Home Screen)
-                              _buildFeaturedFramesSection(isTab),
-                            ],
 
                             const SizedBox(height: 12),
 
@@ -2162,16 +1900,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Tool Selector Tab Bar (5 Clear, Friendly, Non-Intimidating Tabs)
+  // Tool Selector Tab Bar (4 Clear, Friendly, Non-Intimidating Tabs)
   // ---------------------------------------------------------------------------
   Widget _buildToolTabBar(bool isTab) {
     final tabs = [
-      {'icon': Icons.filter_frames_rounded, 'label': '500 Frames', 'badge': '500'},
-      {'icon': Icons.auto_awesome_rounded, 'label': '✨ Studio FX', 'badge': 'HOT'},
-      {'icon': Icons.text_fields_rounded, 'label': 'Text & Fonts'},
-      {'icon': Icons.palette_outlined, 'label': 'Colors'},
-      {'icon': Icons.aspect_ratio_rounded, 'label': 'Canvas Ratio'},
-      {'icon': Icons.tune_rounded, 'label': 'Photo & Filters'},
+      {'icon': Icons.grid_view_rounded, 'label': 'Layout & Slots'},
+      {'icon': Icons.border_style_rounded, 'label': 'Borders & Corners'},
+      {'icon': Icons.title_rounded, 'label': 'Text Labels'},
+      {'icon': Icons.palette_outlined, 'label': 'Colors & FX'},
     ];
 
     return SingleChildScrollView(
@@ -2179,18 +1915,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
       physics: const BouncingScrollPhysics(),
       child: Row(
         children: List.generate(tabs.length, (idx) {
-          final isSelected = idx == 1 ? false : (_selectedTab == (idx > 1 ? idx - 1 : idx));
+          final isSelected = _selectedTab == idx;
           final item = tabs[idx];
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
-                if (idx == 1) {
-                  _openStudioEffectsSheet();
-                } else {
-                  setState(() => _selectedTab = idx > 1 ? idx - 1 : idx);
-                }
+                setState(() => _selectedTab = idx);
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
@@ -2222,24 +1954,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
                         color: isSelected ? Colors.white : Colors.black87,
                       ),
                     ),
-                    if (item.containsKey('badge')) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppColors.bratGreen,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          item['badge'] as String,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -2256,239 +1970,181 @@ class _GenerateScreenState extends State<GenerateScreen> {
   Widget _buildActiveToolPanel(bool isTab) {
     switch (_selectedTab) {
       case 0:
-        return _build100FramesBrowserPanel(isTab);
+        return _buildLayoutAndSlotsPanel(isTab);
       case 1:
-        return _buildTextToolPanel(isTab);
+        return _buildBordersAndCornersPanel(isTab);
       case 2:
-        return _buildThemeToolPanel();
+        return _buildTextToolPanel(isTab);
       case 3:
-        return _buildRatioToolPanel();
-      case 4:
-        return _buildEffectsToolPanel();
+        return _buildColorsAndFxPanel(isTab);
       default:
-        return _build100FramesBrowserPanel(isTab);
+        return _buildLayoutAndSlotsPanel(isTab);
     }
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 0: 100 Frames Browser & Inline Customizer
+  // TAB 0: Layout & Photo Slots Manager
   // ---------------------------------------------------------------------------
-  Widget _build100FramesBrowserPanel(bool isTab) {
-    final filteredFrames = (_selectedFrameCategory == 'All (500)' || _selectedFrameCategory == 'All')
-        ? predefined500Frames
-        : predefined500Frames.where((f) => f.category == _selectedFrameCategory).toList();
+  Widget _buildLayoutAndSlotsPanel(bool isTab) {
+    final active = _activeFrame ?? defaultCustomFrame;
+
+    final layoutPresets = [
+      {
+        'label': 'Single Photo',
+        'sub': '1 Slot',
+        'icon': Icons.crop_portrait_rounded,
+        'layout': FramePhotoLayout.single,
+        'maxPhotos': 1,
+        'padding': const EdgeInsets.all(12.0),
+      },
+      {
+        'label': 'Split Duo (H)',
+        'sub': '2 Slots H',
+        'icon': Icons.view_column_rounded,
+        'layout': FramePhotoLayout.split2H,
+        'maxPhotos': 2,
+        'padding': const EdgeInsets.all(12.0),
+      },
+      {
+        'label': 'Split Duo (V)',
+        'sub': '2 Slots V',
+        'icon': Icons.table_rows_rounded,
+        'layout': FramePhotoLayout.split2V,
+        'maxPhotos': 2,
+        'padding': const EdgeInsets.all(12.0),
+      },
+      {
+        'label': 'Polaroid Frame',
+        'sub': 'Vintage Chin',
+        'icon': Icons.photo_camera_back_rounded,
+        'layout': FramePhotoLayout.single,
+        'maxPhotos': 1,
+        'padding': const EdgeInsets.fromLTRB(16, 16, 16, 52),
+      },
+      {
+        'label': '4 Grid Collage',
+        'sub': '4 Slots 2x2',
+        'icon': Icons.grid_view_rounded,
+        'layout': FramePhotoLayout.grid4,
+        'maxPhotos': 4,
+        'padding': const EdgeInsets.all(12.0),
+      },
+      {
+        'label': '3 Triptych',
+        'sub': '3 Slots H',
+        'icon': Icons.view_week_rounded,
+        'layout': FramePhotoLayout.triptych3,
+        'maxPhotos': 3,
+        'padding': const EdgeInsets.all(10.0),
+      },
+      {
+        'label': '3 Filmstrip',
+        'sub': '3 Slots V',
+        'icon': Icons.movie_filter_rounded,
+        'layout': FramePhotoLayout.filmstrip3,
+        'maxPhotos': 3,
+        'padding': const EdgeInsets.all(10.0),
+      },
+      {
+        'label': 'Border Free',
+        'sub': 'Edge-to-Edge',
+        'icon': Icons.fullscreen_rounded,
+        'layout': FramePhotoLayout.single,
+        'maxPhotos': 1,
+        'padding': EdgeInsets.zero,
+      },
+    ];
+
+    final ratios = [
+      {'label': '1:1 Square', 'ratio': 1.0},
+      {'label': '4:5 Portrait', 'ratio': 4 / 5},
+      {'label': '9:16 Story', 'ratio': 9 / 16},
+      {'label': '16:9 Banner', 'ratio': 16 / 9},
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category Filter Chips & Browse 500 Catalog Button
-        Row(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  children: _frameCategories.map((cat) {
-                    final isCatSelected = _selectedFrameCategory == cat;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _buildChoiceChip(cat, isCatSelected, () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _selectedFrameCategory = cat);
-                        AppLogger.logAction('GenerateScreen', 'Filtered frame category', {'category': cat});
-                      }),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Browse 500 Frames Catalog Modal Button
-            IosBounceButton(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                AppLogger.logAction('GenerateScreen', 'Opening 500 Frames Catalog Sheet');
-                FramesCatalogSheet.show(
-                  context: context,
-                  currentFrame: _activeFrame,
-                  onFrameSelected: (frame) {
-                    _selectFrame(frame);
-                  },
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.dashboard_customize_rounded, size: 13, color: AppColors.bratGreen),
-                    SizedBox(width: 4),
-                    Text(
-                      '500 Catalog',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Action Header: Current Frame Info & Change Photo Shortcut
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                _activeFrame != null
-                    ? '#${_activeFrame!.id} ${_activeFrame!.name} (${filteredFrames.length} in $_selectedFrameCategory)'
-                    : '500 Predefined Frames (50 in each of 10 categories)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (_selectedImage == null)
-              TextButton.icon(
-                onPressed: _showPhotoSourceDialog,
-                icon: const Icon(Icons.add_photo_alternate, size: 16, color: Colors.black),
-                label: const Text(
-                  'Set Your Photo',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppColors.bratGreen,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              )
-            else
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: () => _openImageCropAndAdjustDialog(slotIndex: _activePhotoSlot),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.crop_rounded, size: 14, color: Colors.black87),
-                          SizedBox(width: 3),
-                          Text('Crop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: _showPhotoSourceDialog,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.swap_horiz_rounded, size: 14, color: Colors.black87),
-                          SizedBox(width: 3),
-                          Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    onPressed: _deletePhoto,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
-                    tooltip: 'Delete Photo',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-          ],
+        // 1. Collage Layout Selector
+        Text(
+          'COLLAGE LAYOUT & MULTI-FRAMES',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: Colors.black54,
+          ),
         ),
         const SizedBox(height: 8),
 
-        // Horizontal Scrollable Cards of Frames
         SizedBox(
-          height: isTab ? 120 : 100,
+          height: 86,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: filteredFrames.length,
-            itemBuilder: (context, idx) {
-              final frame = filteredFrames[idx];
-              final isSelected = _activeFrame?.id == frame.id;
+            itemCount: layoutPresets.length,
+            itemBuilder: (ctx, idx) {
+              final p = layoutPresets[idx];
+              final layout = p['layout'] as FramePhotoLayout;
+              final maxPhotos = p['maxPhotos'] as int;
+              final isPolaroid = p['label'] == 'Polaroid Frame';
+              final isSelected = active.photoLayout == layout &&
+                  active.maxPhotos == maxPhotos &&
+                  (!isPolaroid || active.padding.bottom > 30);
 
               return GestureDetector(
-                onTap: () => _selectFrame(frame),
-                child: Container(
-                  width: isTab ? 95 : 80,
-                  margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.all(5),
+                onTap: () {
+                  _recordHistory();
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _activeFrame = active.copyWith(
+                      name: p['label'] as String,
+                      photoLayout: layout,
+                      maxPhotos: maxPhotos,
+                      padding: p['padding'] as EdgeInsets,
+                    );
+                    _syncPhotoSlots();
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 104,
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.black : AppColors.offWhiteColor,
+                    color: isSelected ? Colors.black : const Color(0xffF8FAFC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSelected ? AppColors.bratGreen : Colors.black12,
-                      width: isSelected ? 2.5 : 1,
+                      width: isSelected ? 1.8 : 1.0,
                     ),
                   ),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Mini Frame Mockup
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: frame.frameBgColor,
-                            borderRadius: BorderRadius.circular(
-                              (frame.borderRadius * 0.4).clamp(2.0, 10.0),
-                            ),
-                            border: frame.borderWidth > 0
-                                ? Border.all(color: frame.borderColor, width: 1.5)
-                                : null,
-                          ),
-                          alignment: Alignment.center,
-                          child: Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: const Icon(Icons.image, size: 15, color: Colors.white70),
-                          ),
-                        ),
+                      Icon(
+                        p['icon'] as IconData,
+                        size: 24,
+                        color: isSelected ? AppColors.bratGreen : Colors.black87,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '#${frame.id} ${frame.name}',
+                        p['label'] as String,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                           color: isSelected ? Colors.white : Colors.black87,
                         ),
-                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        p['sub'] as String,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: isSelected ? Colors.white60 : Colors.black45,
+                        ),
                       ),
                     ],
                   ),
@@ -2498,327 +2154,512 @@ class _GenerateScreenState extends State<GenerateScreen> {
           ),
         ),
 
-        // Inline Modify Frame Controls (If frame is active)
-        if (_activeFrame != null) ...[
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.offWhiteColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.tune, size: 16, color: Colors.black87),
-                    const SizedBox(width: 6),
-                    const Text('Customize Frame', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () {
-                        _recordHistory();
-                        HapticFeedback.lightImpact();
-                        setState(() => _activeFrame = null);
-                      },
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                      child: const Text('Clear Frame (Text Studio)', style: TextStyle(color: Colors.redAccent, fontSize: 11)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
+        const SizedBox(height: 14),
 
-                // Caption Edit
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _frameCaptionController,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        decoration: InputDecoration(
-                          hintText: 'Frame Caption...',
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          border: OutlineInputBorder(
+        // 2. Aspect Ratio Selector
+        Row(
+          children: [
+            Text(
+              'RATIO:',
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: ratios.map((r) {
+                    final ratioVal = r['ratio'] as double;
+                    final isSelected = (_aspectRatio - ratioVal).abs() < 0.03;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: GestureDetector(
+                        onTap: () {
+                          _recordHistory();
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _aspectRatio = ratioVal;
+                            _activeFrame = active.copyWith(aspectRatio: ratioVal);
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.black : const Color(0xffF1F5F9),
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
+                            border: Border.all(
+                              color: isSelected ? AppColors.bratGreen : Colors.transparent,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Text(
+                            r['label'] as String,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected ? AppColors.bratGreen : Colors.black87,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => _openColorPicker(context, isBg: false),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: _activeFrame!.captionColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black26),
-                        ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Colors.black12),
+        const SizedBox(height: 14),
+
+        // 3. Multi-Photo Slots Manager
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'PHOTO SLOTS (${active.maxPhotos})',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: Colors.black54,
+              ),
+            ),
+            Text(
+              'Tap a slot to set or change photo',
+              style: GoogleFonts.outfit(fontSize: 11, color: Colors.black45),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Slots Grid
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: List.generate(active.maxPhotos, (slotIdx) {
+            final hasPhoto = slotIdx < _selectedImages.length && _selectedImages[slotIdx] != null;
+            final isSlotActive = _activePhotoSlot == slotIdx;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() => _activePhotoSlot = slotIdx);
+                if (!hasPhoto) {
+                  _showPhotoSourceDialog(slotIndex: slotIdx);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: isTab ? 130 : 100,
+                height: isTab ? 140 : 115,
+                decoration: BoxDecoration(
+                  color: isSlotActive ? AppColors.bratGreen.withValues(alpha: 0.1) : const Color(0xffF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSlotActive ? AppColors.bratGreen : Colors.black12,
+                    width: isSlotActive ? 2.0 : 1.0,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Top Slot Header
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isSlotActive ? Colors.black : Colors.black.withValues(alpha: 0.05),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Slot ${slotIdx + 1}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isSlotActive ? AppColors.bratGreen : Colors.black87,
+                            ),
+                          ),
+                          if (hasPhoto)
+                            const Icon(Icons.check_circle_rounded, size: 12, color: AppColors.bratGreen)
+                          else
+                            const Icon(Icons.add_circle_outline_rounded, size: 12, color: Colors.black45),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
 
-                // Text & Caption Position Selector
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 50,
-                      child: Text('Position', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                    ),
+                    // Slot Preview Thumbnail
                     Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
+                      child: Center(
+                        child: hasPhoto
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.file(
+                                  File(_selectedImages[slotIdx]!.path),
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.add_a_photo_outlined, size: 22, color: Colors.black38),
+                                  SizedBox(height: 3),
+                                  Text('+ Add Photo', style: TextStyle(fontSize: 10, color: Colors.black45, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                      ),
+                    ),
+
+                    // Bottom Action Strip (if has photo)
+                    if (hasPhoto)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(10)),
+                        ),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildPositionPill('Top', Alignment.topCenter),
-                            _buildPositionPill('Top-Left', Alignment.topLeft),
-                            _buildPositionPill('Top-Right', Alignment.topRight),
-                            _buildPositionPill('Center', Alignment.center),
-                            _buildPositionPill('Bottom', Alignment.bottomCenter),
-                            _buildPositionPill('Bottom-Left', Alignment.bottomLeft),
-                            _buildPositionPill('Bottom-Right', Alignment.bottomRight),
+                            GestureDetector(
+                              onTap: () => _openImageCropAndAdjustDialog(slotIndex: slotIdx),
+                              child: const Icon(Icons.crop_rounded, size: 14, color: Colors.black87),
+                            ),
+                            GestureDetector(
+                              onTap: () => _showPhotoSourceDialog(slotIndex: slotIdx),
+                              child: const Icon(Icons.swap_horiz_rounded, size: 14, color: Colors.black87),
+                            ),
+                            GestureDetector(
+                              onTap: () => _deletePhotoSlot(slotIdx),
+                              child: const Icon(Icons.delete_outline_rounded, size: 14, color: Colors.redAccent),
+                            ),
                           ],
                         ),
                       ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-
-                // Caption Size & Frame BG Color
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 50,
-                      child: Text('Size', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                    ),
-                    Expanded(
-                      child: Slider(
-                        value: _activeFrame!.captionSize.clamp(10.0, 36.0),
-                        min: 10.0,
-                        max: 36.0,
-                        activeColor: Colors.black,
-                        inactiveColor: Colors.black12,
-                        onChanged: (v) {
-                          setState(() {
-                            _activeFrame = _activeFrame!.copyWith(captionSize: v);
-                          });
-                        },
-                      ),
-                    ),
-                    Text('${_activeFrame!.captionSize.toInt()}pt', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(width: 6),
-                    Tooltip(
-                      message: 'Frame Background Color',
-                      child: GestureDetector(
-                        onTap: () => _openColorPicker(context, isBg: true),
-                        child: Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: _activeFrame!.frameBgColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.black26),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Border Width & Corners Sliders
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 50,
-                      child: Text('Border', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                    ),
-                    Expanded(
-                      child: Slider(
-                        value: _activeFrame!.borderWidth.clamp(0.0, 20.0),
-                        min: 0.0,
-                        max: 20.0,
-                        activeColor: Colors.black,
-                        inactiveColor: Colors.black12,
-                        onChanged: (v) {
-                          setState(() {
-                            _activeFrame = _activeFrame!.copyWith(borderWidth: v);
-                          });
-                        },
-                      ),
-                    ),
-                    Text('${_activeFrame!.borderWidth.toInt()}px', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: () => _openColorPicker(context, isBg: false, isFrameBorder: true),
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: _activeFrame!.borderColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black26),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 50,
-                      child: Text('Corners', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                    ),
-                    Expanded(
-                      child: Slider(
-                        value: _activeFrame!.borderRadius.clamp(0.0, 40.0),
-                        min: 0.0,
-                        max: 40.0,
-                        activeColor: Colors.black,
-                        inactiveColor: Colors.black12,
-                        onChanged: (v) {
-                          setState(() {
-                            _activeFrame = _activeFrame!.copyWith(borderRadius: v);
-                          });
-                        },
-                      ),
-                    ),
-                    Text('${_activeFrame!.borderRadius.toInt()}px', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            );
+          }),
+        ),
       ],
     );
   }
 
-  Widget _buildPositionPill(String label, Alignment alignment) {
-    final isSelected = _activeFrame?.captionAlignment == alignment;
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: InkWell(
-        onTap: () {
-          _recordHistory();
-          HapticFeedback.selectionClick();
-          setState(() {
-            _activeFrame = _activeFrame!.copyWith(captionAlignment: alignment);
-          });
-        },
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.black : Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: isSelected ? Colors.black : Colors.black12,
-              width: 1,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: isSelected ? Colors.white : Colors.black87,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // TAB 1: Borders & Corners Custom Designer
+  // ---------------------------------------------------------------------------
+  Widget _buildBordersAndCornersPanel(bool isTab) {
+    final active = _activeFrame ?? defaultCustomFrame;
 
-  // ---------------------------------------------------------------------------
-  // TAB 1: Text & Google Fonts (Deep Customization + 30+ Google Fonts)
-  // ---------------------------------------------------------------------------
-  Widget _buildTextToolPanel(bool isTab) {
+    final borderColorsList = [
+      Colors.white,
+      Colors.black,
+      AppColors.bratGreen,
+      const Color(0xffF5F5F0),
+      const Color(0xffFF80BF),
+      const Color(0xff00E5FF),
+      const Color(0xffFFE600),
+      const Color(0xffD4BBFF),
+      const Color(0xff475569),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top Shortcut Row: Quotes & Inspire Me Buttons
+        // 1. Corner Radius
+        Row(
+          children: [
+            Text(
+              'CORNER RADIUS',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: Colors.black54,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${active.borderRadius.toInt()} px',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.bratGreen),
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: active.borderRadius.clamp(0.0, 48.0),
+          min: 0.0,
+          max: 48.0,
+          activeColor: Colors.black,
+          inactiveColor: Colors.black12,
+          onChangeStart: (_) => _recordHistory(),
+          onChanged: (v) {
+            setState(() {
+              _activeFrame = active.copyWith(borderRadius: v);
+            });
+          },
+        ),
+        // Quick presets for Corner Radius
+        Row(
+          children: [
+            _buildPresetChip('Sharp 0', active.borderRadius == 0.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderRadius: 0.0));
+            }),
+            const SizedBox(width: 6),
+            _buildPresetChip('Soft 12', active.borderRadius == 12.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderRadius: 12.0));
+            }),
+            const SizedBox(width: 6),
+            _buildPresetChip('Squircle 24', active.borderRadius == 24.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderRadius: 24.0));
+            }),
+            const SizedBox(width: 6),
+            _buildPresetChip('Pill 44', active.borderRadius == 44.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderRadius: 44.0));
+            }),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Colors.black12),
+        const SizedBox(height: 14),
+
+        // 2. Border Width
+        Row(
+          children: [
+            Text(
+              'BORDER WIDTH',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: Colors.black54,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${active.borderWidth.toInt()} px',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.bratGreen),
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: active.borderWidth.clamp(0.0, 30.0),
+          min: 0.0,
+          max: 30.0,
+          activeColor: Colors.black,
+          inactiveColor: Colors.black12,
+          onChangeStart: (_) => _recordHistory(),
+          onChanged: (v) {
+            setState(() {
+              _activeFrame = active.copyWith(borderWidth: v);
+            });
+          },
+        ),
+        // Quick presets for Border Width
+        Row(
+          children: [
+            _buildPresetChip('None 0', active.borderWidth == 0.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderWidth: 0.0));
+            }),
+            const SizedBox(width: 6),
+            _buildPresetChip('Thin 4', active.borderWidth == 4.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderWidth: 4.0));
+            }),
+            const SizedBox(width: 6),
+            _buildPresetChip('Medium 10', active.borderWidth == 10.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderWidth: 10.0));
+            }),
+            const SizedBox(width: 6),
+            _buildPresetChip('Bold 20', active.borderWidth == 20.0, () {
+              _recordHistory();
+              setState(() => _activeFrame = active.copyWith(borderWidth: 20.0));
+            }),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Colors.black12),
+        const SizedBox(height: 14),
+
+        // 3. Spacing: Slot Gap & Margins
         Row(
           children: [
             Expanded(
-              child: IosBounceButton(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  AppLogger.logAction('GenerateScreen', 'Opening Quotes Picker Sheet');
-                  QuotesPickerSheet.show(
-                    context: context,
-                    currentQuote: _currentText,
-                    onQuoteSelected: (selectedQuote) {
-                      _recordHistory();
-                      setState(() {
-                        _currentText = selectedQuote;
-                        _textController.text = selectedQuote;
-                        if (_textLayers.isNotEmpty) {
-                          final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
-                          if (idx != -1) {
-                            _textLayers[idx] = _textLayers[idx].copyWith(text: selectedQuote);
-                          } else {
-                            _textLayers[0] = _textLayers[0].copyWith(text: selectedQuote);
-                          }
-                        }
-                        if (_activeFrame != null) {
-                          _activeFrame = _activeFrame!.copyWith(caption: selectedQuote);
-                          _frameCaptionController.text = selectedQuote;
-                        }
-                      });
-                      AppLogger.logAction('GenerateScreen', 'Quote applied from picker', {'quote': selectedQuote});
-                    },
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Text('💬', style: TextStyle(fontSize: 14)),
-                      SizedBox(width: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
                       Text(
-                        '120+ Viral Quotes',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                        'SLOT GAP',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black54,
+                        ),
                       ),
+                      Text('${active.slotSpacing.toInt()} px', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                     ],
                   ),
-                ),
+                  Slider(
+                    value: active.slotSpacing.clamp(0.0, 24.0),
+                    min: 0.0,
+                    max: 24.0,
+                    activeColor: Colors.black,
+                    inactiveColor: Colors.black12,
+                    onChangeStart: (_) => _recordHistory(),
+                    onChanged: (v) {
+                      setState(() {
+                        _activeFrame = active.copyWith(slotSpacing: v);
+                      });
+                    },
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 8),
-            IosBounceButton(
-              onTap: _shuffleQuote,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'PADDING',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      Text('${active.padding.left.toInt()} px', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Slider(
+                    value: active.padding.left.clamp(0.0, 36.0),
+                    min: 0.0,
+                    max: 36.0,
+                    activeColor: Colors.black,
+                    inactiveColor: Colors.black12,
+                    onChangeStart: (_) => _recordHistory(),
+                    onChanged: (v) {
+                      setState(() {
+                        _activeFrame = active.copyWith(
+                          padding: active.padding.bottom > 30
+                              ? EdgeInsets.fromLTRB(v, v, v, v + 36.0)
+                              : EdgeInsets.all(v),
+                        );
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Colors.black12),
+        const SizedBox(height: 14),
+
+        // 4. Border Color
+        Text(
+          'BORDER COLOR',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        Row(
+          children: [
+            // Rainbow Picker
+            GestureDetector(
+              onTap: () => _openColorPicker(context, isBg: false, isFrameBorder: true),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                width: 32,
+                height: 32,
+                margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.bratGreen,
-                  borderRadius: BorderRadius.circular(12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black26),
+                  gradient: const SweepGradient(
+                    colors: [Colors.red, Colors.yellow, Colors.green, Colors.cyan, Colors.blue, Colors.purple, Colors.red],
+                  ),
                 ),
+                child: const Icon(Icons.colorize, size: 15, color: Colors.white),
+              ),
+            ),
+            // Palette circles
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text('🎲', style: TextStyle(fontSize: 14)),
-                    SizedBox(width: 6),
-                    Text(
-                      'Inspire Me',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
-                  ],
+                  children: borderColorsList.map((c) {
+                    final isSelected = active.borderColor.toARGB32() == c.toARGB32();
+                    return GestureDetector(
+                      onTap: () {
+                        _recordHistory();
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _activeFrame = active.copyWith(borderColor: c);
+                        });
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        margin: const EdgeInsets.only(right: 7),
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? Colors.black : Colors.black26,
+                            width: isSelected ? 2.5 : 1,
+                          ),
+                        ),
+                        child: isSelected
+                            ? Icon(Icons.check, size: 14, color: c == Colors.white ? Colors.black : Colors.white)
+                            : null,
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ),
@@ -2827,7 +2668,126 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
         const SizedBox(height: 14),
 
-        // Text Layers Manager List & Active Formatting Controls
+        // 5. Drop Shadow Switch
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xffF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.black12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.layers_rounded, size: 18, color: Colors.black87),
+                  SizedBox(width: 8),
+                  Text(
+                    'Realistic Drop Shadow',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                ],
+              ),
+              Switch.adaptive(
+                value: active.hasShadow,
+                activeTrackColor: AppColors.bratGreen,
+                onChanged: (val) {
+                  _recordHistory();
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _activeFrame = active.copyWith(hasShadow: val);
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPresetChip(String label, bool isSelected, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.black : const Color(0xffF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? AppColors.bratGreen : Colors.transparent,
+              width: 1.2,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              color: isSelected ? AppColors.bratGreen : Colors.black87,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 2: Text Labels Manager & Typography
+  // ---------------------------------------------------------------------------
+  Widget _buildTextToolPanel(bool isTab) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TEXT LABELS',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Drag labels freely anywhere on canvas',
+                  style: TextStyle(fontSize: 11, color: Colors.black45),
+                ),
+              ],
+            ),
+            IosBounceButton(
+              onTap: _addTextLayer,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.bratGreen,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.add_rounded, size: 14, color: Colors.black),
+                    SizedBox(width: 4),
+                    Text(
+                      'Add Label',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         TextLayersManagerWidget(
           layers: _textLayers,
           activeLayerId: _activeTextLayerId,
@@ -2844,102 +2804,45 @@ class _GenerateScreenState extends State<GenerateScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 2: Dynamic Colors (Background & Text Color Control)
+  // TAB 3: Colors & Studio FX
   // ---------------------------------------------------------------------------
-  Widget _buildThemeToolPanel() {
+  Widget _buildColorsAndFxPanel(bool isTab) {
     final colorsList = [
       AppColors.bratGreen,
       Colors.white,
       Colors.black,
       const Color(0xff121212),
-      const Color(0xffFF599C),
+      const Color(0xffF5F5F0),
+      const Color(0xffFF80BF),
       const Color(0xff00E5FF),
-      const Color(0xffE0FF00),
+      const Color(0xffFFE600),
       const Color(0xffFF6B35),
       const Color(0xff8B5CF6),
       const Color(0xff2563EB),
       const Color(0xffE50000),
-      const Color(0xffFDF6E2),
       const Color(0xffD6D9E0),
     ];
 
-    final currentColor = _colorTarget == 0 ? _getEffectiveBgColor() : _getEffectiveTextColor();
+    final currentBg = _activeFrame?.frameBgColor ?? _getEffectiveBgColor();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Target Selector: Background vs Text
-        Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _colorTarget = 0),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _colorTarget == 0 ? Colors.black : AppColors.offWhiteColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.format_paint_outlined, size: 16, color: _colorTarget == 0 ? AppColors.bratGreen : Colors.black87),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Background Color',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _colorTarget == 0 ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _colorTarget = 1),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _colorTarget == 1 ? Colors.black : AppColors.offWhiteColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.title_rounded, size: 16, color: _colorTarget == 1 ? AppColors.bratGreen : Colors.black87),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Text Color',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _colorTarget == 1 ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+        Text(
+          'FRAME BACKGROUND COLOR',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: Colors.black54,
+          ),
         ),
-        const SizedBox(height: 12),
-
-        // Color Swatches Row + Rainbow Custom Color Picker
+        const SizedBox(height: 10),
         Row(
           children: [
             // Rainbow Color Picker Button
             GestureDetector(
-              onTap: () => _openColorPicker(context, isBg: _colorTarget == 0),
+              onTap: () => _openColorPicker(context, isBg: true),
               child: Container(
                 width: 34,
                 height: 34,
@@ -2962,29 +2865,16 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: colorsList.map((color) {
-                    final isSelected = currentColor.toARGB32() == color.toARGB32();
+                    final isSelected = currentBg.toARGB32() == color.toARGB32();
                     return GestureDetector(
                       onTap: () {
                         _recordHistory();
                         HapticFeedback.selectionClick();
                         setState(() {
-                          if (_colorTarget == 0) {
-                            _customBgColor = color;
-                            _isTransparentBg = false;
-                            if (_activeFrame != null) {
-                              _activeFrame = _activeFrame!.copyWith(frameBgColor: color);
-                            }
-                          } else {
-                            _customTextColor = color;
-                            if (_activeTextLayer != null) {
-                              final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayer!.id);
-                              if (idx != -1) {
-                                _textLayers[idx] = _activeTextLayer!.copyWith(textColor: color);
-                              }
-                            }
-                            if (_activeFrame != null) {
-                              _activeFrame = _activeFrame!.copyWith(captionColor: color);
-                            }
+                          _customBgColor = color;
+                          _isTransparentBg = false;
+                          if (_activeFrame != null) {
+                            _activeFrame = _activeFrame!.copyWith(frameBgColor: color);
                           }
                         });
                       },
@@ -3015,227 +2905,27 @@ class _GenerateScreenState extends State<GenerateScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+        const Divider(height: 1, color: Colors.black12),
+        const SizedBox(height: 14),
 
-        // Action Buttons: Invert Colors & Transparent Sticker Mode
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  _recordHistory();
-                  HapticFeedback.lightImpact();
-                  setState(() => _isInverted = !_isInverted);
-                },
-                icon: const Icon(Icons.swap_calls_rounded, size: 16),
-                label: Text(
-                  _isInverted ? 'Invert: ON' : 'Invert Colors',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: _isInverted ? Colors.black : Colors.white,
-                  foregroundColor: _isInverted ? AppColors.bratGreen : Colors.black87,
-                  side: const BorderSide(color: Colors.black26),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  _recordHistory();
-                  HapticFeedback.lightImpact();
-                  setState(() => _isTransparentBg = !_isTransparentBg);
-                },
-                icon: const Icon(Icons.layers_clear_outlined, size: 16),
-                label: Text(
-                  _isTransparentBg ? 'Sticker: ON' : 'Transparent PNG',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: _isTransparentBg ? Colors.black : Colors.white,
-                  foregroundColor: _isTransparentBg ? AppColors.bratGreen : Colors.black87,
-                  side: const BorderSide(color: Colors.black26),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // TAB 3: Canvas Ratio (Presets + Custom Aspect Ratio Slider)
-  // ---------------------------------------------------------------------------
-  Widget _buildRatioToolPanel() {
-    final ratios = [
-      {'label': '1:1 Square', 'ratio': 1.0, 'sub': 'Instagram / DP'},
-      {'label': '9:16 Story', 'ratio': 9 / 16, 'sub': 'Reels / TikTok'},
-      {'label': '4:5 Post', 'ratio': 4 / 5, 'sub': 'Feed Portrait'},
-      {'label': '16:9 Wide', 'ratio': 16 / 9, 'sub': 'X / Landscape'},
-      {'label': '3:4 Photo', 'ratio': 3 / 4, 'sub': 'Classic Print'},
-      {'label': '4:3 Screen', 'ratio': 4 / 3, 'sub': 'Retro Display'},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Preset Social Ratios',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+        Text(
+          'STUDIO EFFECTS & FILTERS',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: Colors.black54,
+          ),
         ),
         const SizedBox(height: 8),
 
-        // Grid of 6 Presets
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 2.2,
-          ),
-          itemCount: ratios.length,
-          itemBuilder: (context, idx) {
-            final r = ratios[idx];
-            final ratioVal = r['ratio'] as double;
-            final isSelected = (_aspectRatio - ratioVal).abs() < 0.02;
-
-            return GestureDetector(
-              onTap: () {
-                _recordHistory();
-                HapticFeedback.selectionClick();
-                setState(() {
-                  _aspectRatio = ratioVal;
-                  if (_activeFrame != null) {
-                    _activeFrame = _activeFrame!.copyWith(aspectRatio: ratioVal);
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.black : AppColors.offWhiteColor,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected ? AppColors.bratGreen : Colors.black12,
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      r['label'] as String,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected ? AppColors.bratGreen : Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      r['sub'] as String,
-                      style: TextStyle(
-                        fontSize: 8,
-                        color: isSelected ? Colors.white70 : Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-
-        const SizedBox(height: 14),
-
-        // Custom Ratio Slider
-        Row(
-          children: [
-            const Text(
-              'Custom Free Ratio',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.bratGreen.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'Ratio: ${_aspectRatio.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
-              ),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            const Text('Tall (1:2)', style: TextStyle(fontSize: 10, color: Colors.grey)),
-            Expanded(
-              child: Slider(
-                value: _aspectRatio.clamp(0.50, 2.00),
-                min: 0.50,
-                max: 2.00,
-                activeColor: Colors.black,
-                inactiveColor: Colors.black12,
-                onChangeStart: (_) => _recordHistory(),
-                onChanged: (v) {
-                  setState(() {
-                    _aspectRatio = v;
-                    if (_activeFrame != null) {
-                      _activeFrame = _activeFrame!.copyWith(aspectRatio: v);
-                    }
-                  });
-                },
-              ),
-            ),
-            const Text('Wide (2:1)', style: TextStyle(fontSize: 10, color: Colors.grey)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // TAB 4: Effects & Photo Remixer
-  // ---------------------------------------------------------------------------
-  Widget _buildEffectsToolPanel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Real-Time Blur Slider
-        Row(
-          children: [
-            const SizedBox(
-              width: 70,
-              child: Text('Lo-Fi Blur', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-            Expanded(
-              child: Slider(
-                value: _blurSigma.clamp(0.0, 4.0),
-                min: 0.0,
-                max: 4.0,
-                activeColor: Colors.black,
-                inactiveColor: Colors.black12,
-                onChangeStart: (_) => _recordHistory(),
-                onChanged: (v) => setState(() => _blurSigma = v),
-              ),
-            ),
-            Text('${(_blurSigma * 25).toInt()}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
-        ),
         // Film Grain Slider
         Row(
           children: [
             const SizedBox(
-              width: 70,
-              child: Text('Film Grain', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              width: 75,
+              child: Text('35mm Grain', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             ),
             Expanded(
               child: Slider(
@@ -3254,181 +2944,75 @@ class _GenerateScreenState extends State<GenerateScreen> {
             Text('${(_grainOpacity * 280).toInt()}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
-        const SizedBox(height: 6),
 
-        // Vignette Toggle
+        // Blur Slider
         Row(
           children: [
-            _buildChoiceChip(
-              _hasVignette ? 'Vignette: ON' : 'Vignette: OFF',
-              _hasVignette,
-              () {
-                _recordHistory();
-                HapticFeedback.selectionClick();
-                setState(() => _hasVignette = !_hasVignette);
-              },
+            const SizedBox(
+              width: 75,
+              child: Text('Lo-Fi Blur', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             ),
+            Expanded(
+              child: Slider(
+                value: _blurSigma.clamp(0.0, 4.0),
+                min: 0.0,
+                max: 4.0,
+                activeColor: Colors.black,
+                inactiveColor: Colors.black12,
+                onChangeStart: (_) => _recordHistory(),
+                onChanged: (v) => setState(() => _blurSigma = v),
+              ),
+            ),
+            Text('${(_blurSigma * 25).toInt()}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
-        // Dedicated Photo Management Card
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.offWhiteColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.photo_library_outlined, size: 18, color: Colors.black87),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Photo in Canvas / Frame',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const Spacer(),
-                  if (_selectedImage != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.bratGreen,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text('PHOTO ACTIVE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
-                    ),
-                ],
+        // Toggle buttons: Vignette & Invert
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  _recordHistory();
+                  HapticFeedback.selectionClick();
+                  setState(() => _hasVignette = !_hasVignette);
+                },
+                icon: Icon(_hasVignette ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 16),
+                label: Text(
+                  _hasVignette ? 'Vignette: ON' : 'Vignette: OFF',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: _hasVignette ? Colors.black : Colors.white,
+                  foregroundColor: _hasVignette ? AppColors.bratGreen : Colors.black87,
+                  side: const BorderSide(color: Colors.black26),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-              const SizedBox(height: 10),
-              if (_selectedImage != null || _selectedImages.any((img) => img != null)) ...[
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: ((_activePhotoSlot < _selectedImages.length ? _selectedImages[_activePhotoSlot] : null) ?? _selectedImage) != null
-                          ? Image.file(
-                              File(((_activePhotoSlot < _selectedImages.length ? _selectedImages[_activePhotoSlot] : null) ?? _selectedImage)!.path),
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(width: 44, height: 44, color: Colors.black12, child: const Icon(Icons.add_a_photo_outlined, size: 20)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () => _openImageCropAndAdjustDialog(slotIndex: _activePhotoSlot),
-                            icon: const Icon(Icons.crop_rotate_rounded, size: 14),
-                            label: const Text('Crop & Adjust', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              visualDensity: VisualDensity.compact,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
-                            icon: const Icon(Icons.swap_horiz_rounded, size: 14),
-                            label: const Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              visualDensity: VisualDensity.compact,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => _deletePhotoSlot(_activePhotoSlot),
-                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
-                            visualDensity: VisualDensity.compact,
-                            tooltip: 'Delete Photo',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  _recordHistory();
+                  HapticFeedback.lightImpact();
+                  setState(() => _isInverted = !_isInverted);
+                },
+                icon: const Icon(Icons.swap_calls_rounded, size: 16),
+                label: Text(
+                  _isInverted ? 'Invert: ON' : 'Invert Colors',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                const SizedBox(height: 12),
-                PhotoTransformControls(
-                  state: PhotoTransformState(
-                    rotationQuarter: _photoRotation,
-                    customAngleDegrees: _customAngleDegrees,
-                    flipHorizontal: _flipHorizontal,
-                    flipVertical: _flipVertical,
-                    scale: _photoScale,
-                    offset: _photoOffset,
-                  ),
-                  onChanged: (newState) {
-                    _recordHistory();
-                    setState(() {
-                      _photoRotation = newState.rotationQuarter;
-                      _customAngleDegrees = newState.customAngleDegrees;
-                      _flipHorizontal = newState.flipHorizontal;
-                      _flipVertical = newState.flipVertical;
-                      _photoScale = newState.scale;
-                      _photoOffset = newState.offset;
-                    });
-                  },
-                  onReset: () {
-                    _recordHistory();
-                    setState(() {
-                      _photoRotation = 0;
-                      _customAngleDegrees = 0.0;
-                      _flipHorizontal = false;
-                      _flipVertical = false;
-                      _photoScale = 1.0;
-                      _photoOffset = Offset.zero;
-                    });
-                  },
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: _isInverted ? Colors.black : Colors.white,
+                  foregroundColor: _isInverted ? AppColors.bratGreen : Colors.black87,
+                  side: const BorderSide(color: Colors.black26),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-              ] else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _pickPhoto(source: ImageSource.camera),
-                        icon: const Icon(Icons.camera_alt_outlined, size: 16),
-                        label: const Text('Camera', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _pickPhoto(source: ImageSource.gallery),
-                        icon: const Icon(Icons.photo_library_outlined, size: 16),
-                        label: const Text('Photo Library', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -3566,389 +3150,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
     }
   }
 
-  Widget _buildChoiceChip(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.black : AppColors.offWhiteColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? Colors.black : Colors.black12,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : Colors.black87,
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildQuickActionHub(bool isTab) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        children: [
-          // 1. Add Photo
-          _buildQuickActionPill(
-            icon: Icons.add_a_photo_rounded,
-            label: _selectedImage == null ? 'Add Photo' : 'Change Photo',
-            isHighlighted: _selectedImage == null,
-            onTap: _showPhotoSourceDialog,
-          ),
-          const SizedBox(width: 8),
-
-          // 2. 500 Frames Catalog
-          _buildQuickActionPill(
-            icon: Icons.dashboard_customize_rounded,
-            label: '500 Frames',
-            badge: '500',
-            onTap: () {
-              FramesCatalogSheet.show(
-                context: context,
-                currentFrame: _activeFrame,
-                onFrameSelected: _selectFrame,
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-
-          // 3. Inspire Me
-          _buildQuickActionPill(
-            icon: Icons.casino_rounded,
-            label: 'Inspire Me',
-            badge: '🎲',
-            onTap: _inspireMeFull,
-          ),
-          const SizedBox(width: 8),
-
-          // 4. Viral Quotes
-          _buildQuickActionPill(
-            icon: Icons.format_quote_rounded,
-            label: 'Viral Quotes',
-            onTap: _openQuotesPickerSheet,
-          ),
-          const SizedBox(width: 8),
-
-          // 5. Studio Effects
-          _buildQuickActionPill(
-            icon: Icons.auto_awesome_rounded,
-            label: 'Brat FX',
-            onTap: _openStudioEffectsSheet,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionPill({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    String? badge,
-    bool isHighlighted = false,
-  }) {
-    return IosBounceButton(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: isHighlighted ? AppColors.bratGreen : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isHighlighted ? AppColors.bratGreen : Colors.black.withValues(alpha: 0.1),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isHighlighted
-                  ? AppColors.bratGreen.withValues(alpha: 0.25)
-                  : Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: isHighlighted ? Colors.black : Colors.black87,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isHighlighted ? Colors.black : Colors.black87,
-              ),
-            ),
-            if (badge != null) ...[
-              const SizedBox(width: 5),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                decoration: BoxDecoration(
-                  color: isHighlighted ? Colors.black : AppColors.bratGreen,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    color: isHighlighted ? AppColors.bratGreen : Colors.black,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeaturedFramesSection(bool isTab) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10, bottom: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.bratGreen,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'HOT',
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TRENDING AESTHETIC FRAMES',
-                      style: GoogleFonts.outfit(
-                        fontSize: isTab ? 15 : 12.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      'Tap any frame to customize with your photo',
-                      style: GoogleFonts.outfit(
-                        fontSize: 10.5,
-                        color: Colors.black54,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IosBounceButton(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  FramesCatalogSheet.show(
-                    context: context,
-                    currentFrame: _activeFrame,
-                    onFrameSelected: _selectFrame,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'All 500',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.bratGreen,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 8, color: AppColors.bratGreen),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // Horizontal Featured Frames Carousel
-          SizedBox(
-            height: isTab ? 145 : 125,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: _featuredFrames.length,
-              itemBuilder: (context, index) {
-                final frame = _featuredFrames[index];
-                final isSelected = _activeFrame?.id == frame.id;
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 9),
-                  child: IosBounceButton(
-                    onTap: () => _openFramePreflight(frame),
-                    child: Container(
-                      width: isTab ? 115 : 98,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.bratGreen.withValues(alpha: 0.15)
-                            : const Color(0xffF7F7F9),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isSelected ? AppColors.bratGreen : Colors.black.withValues(alpha: 0.08),
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(5),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Miniature Preview
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: frame.frameBgColor,
-                                borderRadius: BorderRadius.circular(
-                                  (frame.borderRadius * 0.35).clamp(3.0, 8.0),
-                                ),
-                                border: frame.borderWidth > 0
-                                    ? Border.all(
-                                        color: frame.borderColor,
-                                        width: (frame.borderWidth * 0.4).clamp(1.0, 2.5),
-                                      )
-                                    : null,
-                              ),
-                              child: Stack(
-                                children: [
-                                  Center(
-                                    child: Icon(
-                                      Icons.add_photo_alternate_outlined,
-                                      size: 18,
-                                      color: Colors.black.withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 2,
-                                    left: 2,
-                                    right: 2,
-                                    child: Text(
-                                      frame.caption.isNotEmpty ? frame.caption : 'brat',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                        color: frame.captionColor,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          // Frame Title
-                          Text(
-                            frame.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                            ),
-                          ),
-
-                          // Category & Ratio
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                frame.category.split(' ').first,
-                                style: const TextStyle(fontSize: 9),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                                child: Text(
-                                  (frame.aspectRatio - 1.0).abs() < 0.1
-                                      ? '1:1'
-                                      : (frame.aspectRatio < 1.0 ? '9:16' : '4:5'),
-                                  style: const TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildCanvasPhotoControlsBar() {
     final totalSlots = _activeFrame?.maxPhotos ?? 1;
@@ -4195,108 +3397,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
     );
   }
 
-  Widget _buildHistoryControlsBar(bool isTab) {
-    return Row(
-      children: [
-        // Undo Button
-        IosBounceButton(
-          onTap: _undoStack.isNotEmpty ? _undo : null,
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.black12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.undo_rounded,
-              size: 19,
-              color: _undoStack.isNotEmpty ? Colors.black : Colors.black26,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
 
-        // Redo Button
-        IosBounceButton(
-          onTap: _redoStack.isNotEmpty ? _redo : null,
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.black12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.redo_rounded,
-              size: 19,
-              color: _redoStack.isNotEmpty ? Colors.black : Colors.black26,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // Reset Button
-        IosBounceButton(
-          onTap: _resetToDefault,
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.restart_alt_rounded, size: 16, color: Colors.redAccent),
-                SizedBox(width: 4),
-                Text(
-                  'Reset',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.redAccent,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const Spacer(),
-
-        // Mode Status Badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _activeFrame != null ? Icons.filter_frames_outlined : Icons.edit_note_outlined,
-                size: 14,
-                color: Colors.black87,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _activeFrame != null ? 'Frame Mode' : 'Text Studio',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // -----------------------------------------------------------------------------
