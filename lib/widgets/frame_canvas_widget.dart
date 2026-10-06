@@ -56,7 +56,7 @@ class FrameCanvasWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveRatio = (studioEffects?.aspectRatio ?? frame.aspectRatio).clamp(0.4, 2.5);
+    final effectiveRatio = frame.aspectRatio.clamp(0.4, 2.5);
 
     Widget canvasContent = AspectRatio(
       aspectRatio: effectiveRatio,

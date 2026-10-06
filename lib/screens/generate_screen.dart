@@ -319,6 +319,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _activeFrame = widget.initialFrame ?? defaultCustomFrame;
     _frameCaptionController.text = _activeFrame?.caption ?? '';
     _aspectRatio = _activeFrame!.aspectRatio;
+    _studioEffects = _studioEffects.copyWith(aspectRatio: _aspectRatio);
     _syncPhotoSlots();
 
     final initialTextStr = (widget.initialText != null && widget.initialText!.isNotEmpty)
@@ -365,6 +366,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
         _activeFrame = widget.initialFrame;
         _frameCaptionController.text = _activeFrame?.caption ?? '';
         _aspectRatio = widget.initialFrame!.aspectRatio;
+        _studioEffects = _studioEffects.copyWith(aspectRatio: widget.initialFrame!.aspectRatio);
         _syncPhotoSlots();
       });
     }
@@ -442,7 +444,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
     HapticFeedback.lightImpact();
     StudioEffectsSheet.show(
       context,
-      currentEffects: _studioEffects,
+      currentEffects: _studioEffects.copyWith(
+        aspectRatio: _activeFrame?.aspectRatio ?? _aspectRatio,
+      ),
       onEffectsChanged: (updated) {
         setState(() {
           _studioEffects = updated;
@@ -452,6 +456,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
           _hasVignette = updated.hasVignette;
           _isInverted = updated.isInverted;
           _aspectRatio = updated.aspectRatio;
+          if (_activeFrame != null) {
+            _activeFrame = _activeFrame!.copyWith(aspectRatio: updated.aspectRatio);
+          }
         });
       },
       onPaletteSelected: (palette) {
@@ -610,6 +617,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _flipVertical = snap.flipVertical;
     _photoFit = snap.photoFit;
     _activeFrame = snap.activeFrame;
+    _studioEffects = _studioEffects.copyWith(aspectRatio: snap.aspectRatio);
     _frameCaptionController.text = snap.frameCaption;
     if (snap.textLayers != null && snap.textLayers!.isNotEmpty) {
       _textLayers = snap.textLayers!.map((l) => l.copyWith()).toList();
@@ -652,6 +660,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       _currentTextCase = 'lowercase';
       _letterSpacing = -0.5;
       _aspectRatio = 1.0;
+      _studioEffects = const StudioEffectsModel();
       _bgIndex = 0;
       _textIndex = 0;
       _customBgColor = null;
@@ -1137,8 +1146,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
         _customAngleDegrees = transform.customAngleDegrees;
         _flipHorizontal = transform.flipHorizontal;
         _flipVertical = transform.flipVertical;
-        if (newRatio != null && _activeFrame == null) {
+        if (newRatio != null) {
           _aspectRatio = newRatio;
+          if (_activeFrame != null) {
+            _activeFrame = _activeFrame!.copyWith(aspectRatio: newRatio);
+          }
+          _studioEffects = _studioEffects.copyWith(aspectRatio: newRatio);
         }
       });
     }
@@ -1728,10 +1741,11 @@ class _GenerateScreenState extends State<GenerateScreen> {
   }
 
   String _getRatioLabel(double ratio) {
-    if ((ratio - 1.0).abs() < 0.05) return '1:1 Square (Feed)';
-    if ((ratio - 9 / 16).abs() < 0.05) return '9:16 Story & Reels';
-    if ((ratio - 4 / 5).abs() < 0.05) return '4:5 Portrait';
-    if ((ratio - 16 / 9).abs() < 0.05) return '16:9 Banner';
+    if ((ratio - 1.0).abs() < 0.03) return '1:1 Square (Feed)';
+    if ((ratio - 9 / 16).abs() < 0.03) return '9:16 Story & Reels';
+    if ((ratio - 4 / 5).abs() < 0.03) return '4:5 Portrait';
+    if ((ratio - 3 / 4).abs() < 0.03) return '3:4 Classic';
+    if ((ratio - 16 / 9).abs() < 0.03) return '16:9 Banner';
     return '${ratio.toStringAsFixed(2)} Aspect';
   }
 
@@ -1740,8 +1754,15 @@ class _GenerateScreenState extends State<GenerateScreen> {
     final isTab = context.isTablet;
     final screenHeight = MediaQuery.sizeOf(context).height;
 
-    // Responsive max preview constraints
-    final double maxCanvasHeight = isTab ? 380 : (screenHeight < 700 ? 220 : 265);
+    // Responsive max preview constraints: vertically expansive for stories/portraits
+    final double currentRatio = (_activeFrame?.aspectRatio ?? _aspectRatio).clamp(0.4, 2.5);
+    final double maxCanvasHeight = isTab
+        ? 440
+        : (currentRatio < 0.65
+            ? (screenHeight * 0.44).clamp(320.0, 390.0)
+            : (currentRatio < 0.95
+                ? (screenHeight * 0.38).clamp(280.0, 335.0)
+                : (screenHeight < 700 ? 220 : 265)));
     final double maxCanvasWidth = isTab ? 500 : double.infinity;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -2267,6 +2288,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       {'label': '1:1 Square', 'ratio': 1.0},
       {'label': '4:5 Portrait', 'ratio': 4 / 5},
       {'label': '9:16 Story', 'ratio': 9 / 16},
+      {'label': '3:4 Classic', 'ratio': 3 / 4},
       {'label': '16:9 Banner', 'ratio': 16 / 9},
     ];
 
@@ -2383,7 +2405,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 child: Row(
                   children: ratios.map((r) {
                     final ratioVal = r['ratio'] as double;
-                    final isSelected = (_aspectRatio - ratioVal).abs() < 0.03;
+                    final currentRatio = _activeFrame?.aspectRatio ?? _aspectRatio;
+                    final isSelected = (currentRatio - ratioVal).abs() < 0.03;
                     return Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: GestureDetector(
@@ -2393,6 +2416,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                           setState(() {
                             _aspectRatio = ratioVal;
                             _activeFrame = active.copyWith(aspectRatio: ratioVal);
+                            _studioEffects = _studioEffects.copyWith(aspectRatio: ratioVal);
                           });
                         },
                         child: Container(
@@ -2440,9 +2464,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 color: Colors.black54,
               ),
             ),
-            Text(
-              'Tap a slot to set or change photo',
-              style: GoogleFonts.outfit(fontSize: 11, color: Colors.black45),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Tap a slot to set or change photo',
+                style: GoogleFonts.outfit(fontSize: 11, color: Colors.black45),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
             ),
           ],
         ),

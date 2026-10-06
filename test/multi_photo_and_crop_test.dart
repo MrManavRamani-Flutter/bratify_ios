@@ -8,6 +8,7 @@ import 'package:brat_generator/screens/image_crop_screen.dart';
 import 'package:brat_generator/screens/save_screen.dart';
 import 'package:brat_generator/services/database_service.dart';
 import 'package:brat_generator/widgets/frame_canvas_widget.dart';
+import 'package:brat_generator/features/studio_effects/studio_effects_model.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -150,6 +151,90 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(SaveScreen), findsOneWidget);
+    });
+  });
+
+  group('Aspect Ratio Tests', () {
+    testWidgets('FrameCanvasWidget applies 9:16 aspect ratio correctly without being overridden by default studio effects', (WidgetTester tester) async {
+      final storyFrame = defaultCustomFrame.copyWith(aspectRatio: 9 / 16);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FrameCanvasWidget(
+              frame: storyFrame,
+              studioEffects: const StudioEffectsModel(),
+              imageFile: null,
+              onPickImage: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final arFinder = find.descendant(
+        of: find.byType(FrameCanvasWidget),
+        matching: find.byType(AspectRatio),
+      );
+      expect(arFinder, findsWidgets);
+      final AspectRatio arWidget = tester.widget(arFinder.first);
+      expect(arWidget.aspectRatio, closeTo(9 / 16, 0.001));
+    });
+
+    testWidgets('FrameCanvasWidget applies 4:5 aspect ratio correctly', (WidgetTester tester) async {
+      final portraitFrame = defaultCustomFrame.copyWith(aspectRatio: 4 / 5);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FrameCanvasWidget(
+              frame: portraitFrame,
+              studioEffects: const StudioEffectsModel(),
+              imageFile: null,
+              onPickImage: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final arFinder = find.descendant(
+        of: find.byType(FrameCanvasWidget),
+        matching: find.byType(AspectRatio),
+      );
+      final AspectRatio arWidget = tester.widget(arFinder.first);
+      expect(arWidget.aspectRatio, closeTo(4 / 5, 0.001));
+    });
+
+    testWidgets('Changing ratio in GenerateScreen updates ratio chips and canvas', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: GenerateScreen(
+            isDedicatedEditScreen: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find 9:16 Story ratio button in Tab 0
+      final storyRatioBtn = find.text('9:16 Story');
+      expect(storyRatioBtn, findsOneWidget);
+
+      await tester.ensureVisible(storyRatioBtn);
+      await tester.pumpAndSettle();
+
+      await tester.tap(storyRatioBtn);
+      await tester.pumpAndSettle();
+
+      // Verify the top app bar subtitle updated to 9:16 Story & Reels
+      expect(find.text('9:16 Story & Reels'), findsOneWidget);
     });
   });
 }

@@ -525,10 +525,11 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   }
 
   String _getRatioLabel(double ratio) {
-    if ((ratio - 1.0).abs() < 0.05) return '1:1 Square';
-    if ((ratio - 9 / 16).abs() < 0.05) return '9:16 Story';
-    if ((ratio - 4 / 5).abs() < 0.05) return '4:5 Portrait';
-    if ((ratio - 16 / 9).abs() < 0.05) return '16:9 Wide';
+    if ((ratio - 1.0).abs() < 0.03) return '1:1 Square';
+    if ((ratio - 9 / 16).abs() < 0.03) return '9:16 Story';
+    if ((ratio - 4 / 5).abs() < 0.03) return '4:5 Portrait';
+    if ((ratio - 3 / 4).abs() < 0.03) return '3:4 Classic';
+    if ((ratio - 16 / 9).abs() < 0.03) return '16:9 Wide';
     return '${ratio.toStringAsFixed(2)} Ratio';
   }
 }

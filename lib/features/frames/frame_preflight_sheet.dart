@@ -51,10 +51,11 @@ class _FramePreflightSheetState extends State<FramePreflightSheet> {
   bool _isPicking = false;
 
   String _formatRatio(double ratio) {
-    if ((ratio - 1.0).abs() < 0.05) return '1:1 Square (Feed)';
-    if ((ratio - 9 / 16).abs() < 0.05) return '9:16 Vertical (Story/Reels)';
-    if ((ratio - 4 / 5).abs() < 0.05) return '4:5 Portrait (Instagram)';
-    if ((ratio - 16 / 9).abs() < 0.05) return '16:9 Banner';
+    if ((ratio - 1.0).abs() < 0.03) return '1:1 Square (Feed)';
+    if ((ratio - 9 / 16).abs() < 0.03) return '9:16 Vertical (Story/Reels)';
+    if ((ratio - 4 / 5).abs() < 0.03) return '4:5 Portrait (Instagram)';
+    if ((ratio - 3 / 4).abs() < 0.03) return '3:4 Classic Digicam';
+    if ((ratio - 16 / 9).abs() < 0.03) return '16:9 Banner';
     return '${ratio.toStringAsFixed(2)} Ratio';
   }
 
@@ -368,10 +369,12 @@ class _FramePreflightSheetState extends State<FramePreflightSheet> {
                   children: [
                     // Visual Preview of the Frame
                     Center(
-                      child: Container(
-                        height: 180,
-                        width: 220,
-                        decoration: BoxDecoration(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180, maxWidth: 240),
+                        child: AspectRatio(
+                          aspectRatio: frame.aspectRatio.clamp(0.4, 2.5),
+                          child: Container(
+                            decoration: BoxDecoration(
                           color: frame.frameBgColor,
                           borderRadius: BorderRadius.circular(frame.borderRadius.clamp(4.0, 20.0)),
                           border: frame.borderWidth > 0
@@ -450,6 +453,8 @@ class _FramePreflightSheetState extends State<FramePreflightSheet> {
                         ),
                       ),
                     ),
+                  ),
+                ),
 
                     const SizedBox(height: 18),
 
