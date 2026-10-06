@@ -66,13 +66,12 @@ class _QuotesPickerSheetState extends State<QuotesPickerSheet> {
             .toSet()
             .toList();
 
-    return Container(
-      height: MediaQuery.sizeOf(context).height * 0.75,
-      decoration: const BoxDecoration(
-        color: Color(0xff121217),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
+    return Material(
+      color: const Color(0xff121217),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.75,
+        child: Column(
         children: [
           // Drag handle
           const SizedBox(height: 12),
@@ -242,6 +241,7 @@ class _QuotesPickerSheetState extends State<QuotesPickerSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

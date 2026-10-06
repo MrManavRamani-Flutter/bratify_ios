@@ -198,13 +198,20 @@ class _GenerateScreenState extends State<GenerateScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Edit Text Label', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Text(
+          'Edit Text Label',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
+        ),
         content: TextField(
           controller: editController,
           autofocus: true,
+          style: GoogleFonts.outfit(fontSize: 15, color: Colors.black87),
           decoration: InputDecoration(
             hintText: 'Enter label text...',
+            hintStyle: GoogleFonts.outfit(color: Colors.black38),
             filled: true,
             fillColor: const Color(0xffF1F5F9),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -213,7 +220,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -224,9 +231,11 @@ class _GenerateScreenState extends State<GenerateScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black,
               foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Apply'),
+            child: Text('Apply', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -873,7 +882,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (ctx) {
         return SafeArea(
@@ -895,12 +904,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   _activeFrame != null && _activeFrame!.maxPhotos > 1
                       ? 'Select Photo for Slot ${slotIndex + 1}'
                       : 'Select Photo Source',
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Take a fresh picture or pick from your library',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.black54),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -1135,70 +1144,258 @@ class _GenerateScreenState extends State<GenerateScreen> {
     }
   }
 
+  void _showSaveSuccessDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required IconData icon,
+    bool isPhotoExport = false,
+  }) {
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xff1E1E24) : Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: AppColors.bratGreen.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.bratGreen.withValues(alpha: 0.4), width: 1.5),
+                ),
+                child: Icon(
+                  icon,
+                  color: isDark ? AppColors.bratGreen : Colors.black,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xff111827),
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w400,
+                  color: isDark ? Colors.white70 : const Color(0xff6B7280),
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          actions: [
+            if (isPhotoExport)
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _shareMeme(context);
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: Icon(
+                  Icons.ios_share_rounded,
+                  size: 17,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                label: Text(
+                  'Share',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? AppColors.bratGreen : Colors.black,
+                foregroundColor: isDark ? Colors.black : Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: Text(
+                'Done',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSaveErrorDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xff1E1E24) : Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.redAccent,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xff111827),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 13.5,
+                  color: isDark ? Colors.white70 : const Color(0xff6B7280),
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? Colors.white24 : Colors.black,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                'OK',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _saveMemeToDatabase() async {
     HapticFeedback.lightImpact();
     setState(() => _isExporting = true);
     await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     try {
-      final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
-      final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final pngBytes = byteData?.buffer.asUint8List();
+      await ProcessScreen.run(
+        context: context,
+        title: 'Saving to Library...',
+        subtitle: 'Storing your custom frame in your local creations',
+        featureName: 'SaveToLibrary',
+        task: () async {
+          final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          if (boundary == null) return;
+          final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+          final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+          final pngBytes = byteData?.buffer.asUint8List();
 
-      Uint8List? bgImageBytes;
-      if (_selectedImage != null) {
-        bgImageBytes = await File(_selectedImage!.path).readAsBytes();
-      }
+          Uint8List? bgImageBytes;
+          if (_selectedImage != null) {
+            bgImageBytes = await File(_selectedImage!.path).readAsBytes();
+          }
 
-      final meme = MemeDesign(
-        id: _existingMemeId,
-        backgroundColor: _activeFrame != null ? _activeFrame!.frameBgColor : _getEffectiveBgColor(),
-        backgroundImageBytes: bgImageBytes,
-        text: _activeFrame != null ? _activeFrame!.caption : _currentText,
-        textAlign: _currentAlignment,
-        fontFamily: _currentFontFamily,
-        fontSize: _currentFontSize,
-        fontWeight: _currentFontWeight,
-        textColor: _getEffectiveTextColor(),
-        imageBytes: pngBytes,
-        createdAt: DateTime.now().toIso8601String(),
+          final meme = MemeDesign(
+            id: _existingMemeId,
+            backgroundColor: _activeFrame != null ? _activeFrame!.frameBgColor : _getEffectiveBgColor(),
+            backgroundImageBytes: bgImageBytes,
+            text: _activeFrame != null ? _activeFrame!.caption : _currentText,
+            textAlign: _currentAlignment,
+            fontFamily: _currentFontFamily,
+            fontSize: _currentFontSize,
+            fontWeight: _currentFontWeight,
+            textColor: _getEffectiveTextColor(),
+            imageBytes: pngBytes,
+            createdAt: DateTime.now().toIso8601String(),
+          );
+
+          final db = DatabaseHelper();
+          if (_existingMemeId != null) {
+            await db.updateMemeDesign(meme);
+          } else {
+            _existingMemeId = await db.insertMemeDesign(meme);
+          }
+
+          if (mounted) {
+            _showSaveSuccessDialog(
+              context,
+              title: 'Saved to Library!',
+              message: 'Your frame design has been stored. You can view, re-edit, or export it anytime from your Library.',
+              icon: Icons.bookmark_added_rounded,
+              isPhotoExport: false,
+            );
+          }
+          AppLogger.logAction('Database', 'Saved meme to local SQLite DB', {
+            'id': _existingMemeId,
+            'hasFrame': _activeFrame != null,
+            'hasImage': _selectedImage != null,
+          });
+        },
       );
-
-      final db = DatabaseHelper();
-      if (_existingMemeId != null) {
-        await db.updateMemeDesign(meme);
-      } else {
-        _existingMemeId = await db.insertMemeDesign(meme);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.check_circle, color: AppColors.bratGreen, size: 20),
-                SizedBox(width: 8),
-                Text('Saved to Library!'),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: const Color(0xff18181B),
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-      AppLogger.logAction('Database', 'Saved meme to local SQLite DB', {
-        'id': _existingMemeId,
-        'hasFrame': _activeFrame != null,
-        'hasImage': _selectedImage != null,
-      });
     } catch (e, st) {
       AppLogger.logError('Database', 'Failed to save meme design', e, st);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save: $e')),
+        _showSaveErrorDialog(
+          context,
+          title: 'Save Failed',
+          message: 'Could not save to library: $e',
         );
       }
     } finally {
@@ -1243,24 +1440,18 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
           if (mounted) {
             if (isSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: const [
-                      Icon(Icons.photo_library, color: AppColors.bratGreen, size: 20),
-                      SizedBox(width: 8),
-                      Text('Saved in Ultra-HD to Photos!'),
-                    ],
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: const Color(0xff18181B),
-                  duration: const Duration(seconds: 3),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
+              _showSaveSuccessDialog(
+                context,
+                title: 'Saved to Photos!',
+                message: 'Your high-resolution frame has been successfully saved to your camera roll.',
+                icon: Icons.photo_library_rounded,
+                isPhotoExport: true,
               );
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Failed to save. Please allow Photos access in Settings.')),
+              _showSaveErrorDialog(
+                context,
+                title: 'Save Failed',
+                message: 'Could not save to Photos. Please ensure Photos permissions are granted in iOS Settings.',
               );
             }
           }
@@ -1331,16 +1522,23 @@ class _GenerateScreenState extends State<GenerateScreen> {
     showDialog(
       context: context,
       builder: (ctx) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
         return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: isDark ? const Color(0xff1E1E24) : Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
           title: Text(
             isFrameBorder
                 ? 'Border Color'
                 : isBg
                     ? 'Background Color'
                     : 'Text Color',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
           content: SingleChildScrollView(
             child: ColorPicker(
@@ -1353,14 +1551,25 @@ class _GenerateScreenState extends State<GenerateScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.outfit(
+                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.bratGreen,
                 foregroundColor: Colors.black,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                'Select',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
               ),
               onPressed: () {
                 setState(() {
@@ -1387,7 +1596,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 });
                 Navigator.pop(ctx);
               },
-              child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -3028,7 +3236,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (ctx) {
         String searchQuery = '';

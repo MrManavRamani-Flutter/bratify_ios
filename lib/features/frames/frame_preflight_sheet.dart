@@ -263,15 +263,14 @@ class _FramePreflightSheetState extends State<FramePreflightSheet> {
     final isTab = MediaQuery.sizeOf(context).shortestSide >= 600;
     final frame = widget.frame;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-      ),
-      decoration: const BoxDecoration(
-        color: Color(0xff121217),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
+    return Material(
+      color: const Color(0xff121217),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+        ),
+        child: SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -562,8 +561,9 @@ class _FramePreflightSheetState extends State<FramePreflightSheet> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildRequirementRow({
     required String number,

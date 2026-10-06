@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../services/logger_service.dart';
 import 'maintenance_screen.dart';
@@ -120,24 +121,23 @@ class _ProcessScreenState extends State<ProcessScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xff1E1E24) : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xff111827);
+    final secondaryTextColor = isDark ? Colors.white70 : const Color(0xff6B7280);
+    final trackColor = isDark ? Colors.white12 : const Color(0xffE5E7EB);
+
     return PopScope(
       canPop: false,
-      child: Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 32),
+      child: Dialog(
+        backgroundColor: dialogBg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 10,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Padding(
           padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: const Color(0xff18181E),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -156,7 +156,7 @@ class _ProcessScreenState extends State<ProcessScreen> with SingleTickerProvider
                         boxShadow: [
                           BoxShadow(
                             color: AppColors.bratGreen.withValues(alpha: 0.45),
-                            blurRadius: 20,
+                            blurRadius: 18,
                             spreadRadius: 2,
                           ),
                         ],
@@ -177,15 +177,15 @@ class _ProcessScreenState extends State<ProcessScreen> with SingleTickerProvider
                 },
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
 
               Text(
                 widget.title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: primaryTextColor,
                   letterSpacing: -0.3,
                 ),
               ),
@@ -195,9 +195,11 @@ class _ProcessScreenState extends State<ProcessScreen> with SingleTickerProvider
                 Text(
                   widget.subtitle!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white60,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: secondaryTextColor,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -207,16 +209,16 @@ class _ProcessScreenState extends State<ProcessScreen> with SingleTickerProvider
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: SizedBox(
-                  height: 4,
+                  height: 5,
                   child: widget.progress != null
                       ? LinearProgressIndicator(
                           value: widget.progress,
-                          backgroundColor: Colors.white12,
+                          backgroundColor: trackColor,
                           valueColor: const AlwaysStoppedAnimation(AppColors.bratGreen),
                         )
-                      : const LinearProgressIndicator(
-                          backgroundColor: Colors.white12,
-                          valueColor: AlwaysStoppedAnimation(AppColors.bratGreen),
+                      : LinearProgressIndicator(
+                          backgroundColor: trackColor,
+                          valueColor: const AlwaysStoppedAnimation(AppColors.bratGreen),
                         ),
                 ),
               ),
@@ -228,9 +230,9 @@ class _ProcessScreenState extends State<ProcessScreen> with SingleTickerProvider
                 child: Text(
                   _inspiringTips[_tipIndex],
                   key: ValueKey(_tipIndex),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.white38,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    color: secondaryTextColor.withValues(alpha: 0.8),
                     fontStyle: FontStyle.italic,
                   ),
                 ),

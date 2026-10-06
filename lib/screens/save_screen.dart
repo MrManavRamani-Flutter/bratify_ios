@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:brat_generator/models/meme_design_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -262,20 +263,22 @@ class _SaveScreenState extends State<SaveScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.offWhiteColor,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Confirm Delete',
-          style: TextStyle(
-            color: AppColors.textBlackColor,
-            fontSize: 20, // Set your desired font size here
+          style: GoogleFonts.outfit(
+            color: Colors.black87,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
-          'Are you sure you want to delete this meme?',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 16, // Set your desired font size here
+        content: Text(
+          'Are you sure you want to delete this meme from your library?',
+          style: GoogleFonts.outfit(
+            color: Colors.black54,
+            fontSize: 14,
           ),
         ),
         actions: [
@@ -283,17 +286,23 @@ class _SaveScreenState extends State<SaveScreen> {
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
               'Cancel',
-              style: TextStyle(color: AppColors.textBlackColor, fontSize: 18),
+              style: GoogleFonts.outfit(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
             ),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
-              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop();
               await _deleteMeme(meme);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
             child: Text(
-              'Yes',
-              style: TextStyle(color: AppColors.fillColor, fontSize: 18),
+              'Delete',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
             ),
           ),
         ],

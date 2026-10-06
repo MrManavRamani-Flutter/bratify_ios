@@ -77,16 +77,15 @@ class _StudioEffectsSheetState extends State<StudioEffectsSheet> with SingleTick
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.78 + bottomInset,
-      ),
-      margin: EdgeInsets.only(bottom: bottomInset),
-      decoration: const BoxDecoration(
-        color: Color(0xff18181E),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SafeArea(
+    return Material(
+      color: const Color(0xff18181E),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.78 + bottomInset,
+        ),
+        margin: EdgeInsets.only(bottom: bottomInset),
+        child: SafeArea(
         top: false,
         child: Column(
           children: [
@@ -184,8 +183,9 @@ class _StudioEffectsSheetState extends State<StudioEffectsSheet> with SingleTick
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ---------------------------------------------------------------------------
   // Tab 1: FX & Blur

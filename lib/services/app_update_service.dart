@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -91,58 +92,51 @@ class AppUpdateService {
       barrierDismissible: false,
       context: context,
       builder: (BuildContext context) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
         return PopScope(
           canPop: true,
           child: Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 420),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                color: AppColors.whiteColor.withValues(alpha: 0.98),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 20,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
+            backgroundColor: isDark ? const Color(0xff1E1E24) : Colors.white,
+            surfaceTintColor: Colors.transparent,
+            elevation: 10,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 58,
+                    height: 58,
                     decoration: BoxDecoration(
-                      color: AppColors.fillColor.withValues(alpha: 0.15),
+                      color: AppColors.bratGreen.withValues(alpha: 0.18),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.system_update_rounded,
-                      color: AppColors.fillColor,
+                      color: Colors.black87,
                       size: 28,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   Text(
                     AppStrings.updatedReq,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textBlackColor,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     AppStrings.updateVersion,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.textBlackColor.withValues(alpha: 0.75),
+                      color: isDark ? Colors.white70 : Colors.black54,
                       height: 1.4,
                     ),
                   ),
@@ -154,10 +148,10 @@ class AppUpdateService {
                           onPressed: () => Navigator.of(context).pop(),
                           child: Text(
                             'Later',
-                            style: TextStyle(
+                            style: GoogleFonts.outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textBlackColor.withValues(alpha: 0.6),
+                              color: isDark ? Colors.white60 : Colors.black45,
                             ),
                           ),
                         ),
@@ -165,22 +159,21 @@ class AppUpdateService {
                       const SizedBox(width: 12),
                       Expanded(
                         flex: 2,
-                        child: GestureDetector(
-                          onTap: _openAppStore,
-                          child: Container(
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              color: AppColors.fillColor,
-                            ),
+                        child: ElevatedButton(
+                          onPressed: _openAppStore,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            child: Text(
-                              AppStrings.updateNow,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.whiteColor,
-                              ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: Text(
+                            AppStrings.updateNow,
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                         ),

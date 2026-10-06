@@ -79,13 +79,12 @@ class _FramesCatalogSheetState extends State<FramesCatalogSheet> {
       return matchesCategory && matchesQuery;
     }).toList();
 
-    return Container(
-      height: MediaQuery.sizeOf(context).height * 0.82,
-      decoration: const BoxDecoration(
-        color: Color(0xff121217),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
+    return Material(
+      color: const Color(0xff121217),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.82,
+        child: Column(
         children: [
           // Drag Handle
           const SizedBox(height: 12),
@@ -295,6 +294,7 @@ class _FramesCatalogSheetState extends State<FramesCatalogSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
