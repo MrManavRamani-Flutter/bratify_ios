@@ -47,10 +47,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openEditor({FrameTemplate? frame, MemeDesign? design}) {
     HapticFeedback.mediumImpact();
     FrameTemplate? effectiveFrame = frame;
-    if (design != null && design.frameId != null) {
-      final matches = predefined100Frames.where((f) => f.id == design.frameId);
-      if (matches.isNotEmpty) {
-        effectiveFrame = matches.first;
+    if (design != null) {
+      if (design.frameTemplate != null) {
+        effectiveFrame = design.frameTemplate;
+      } else if (design.frameId != null) {
+        final matches = predefined100Frames.where((f) => f.id == design.frameId);
+        if (matches.isNotEmpty) {
+          effectiveFrame = matches.first;
+        }
       }
     }
     Navigator.push(

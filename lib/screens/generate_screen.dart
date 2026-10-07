@@ -11,6 +11,7 @@ import 'package:gal/gal.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import '../constants/app_colors.dart';
@@ -102,6 +103,11 @@ class _GenerateScreenState extends State<GenerateScreen> {
   List<TextLayerModel> get textLayers => _textLayers;
   FrameTemplate? get activeFrame => _activeFrame;
   double get aspectRatio => _aspectRatio;
+  double get photoScale => _photoScale;
+  int get photoRotation => _photoRotation;
+  String get activeFilterId => _activeFilterId;
+  double get filterIntensity => _filterIntensity;
+  List<XFile?> get selectedImages => _selectedImages;
 
   TextLayerModel? get _activeTextLayer {
     if (_textLayers.isEmpty) return null;
@@ -368,7 +374,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
       // Restore Frame preset
       FrameTemplate baseFrame = defaultCustomFrame;
-      if (design.frameId != null) {
+      if (design.frameTemplate != null) {
+        baseFrame = design.frameTemplate!;
+      } else if (design.frameId != null) {
         final matches = predefined100Frames.where((f) => f.id == design.frameId);
         if (matches.isNotEmpty) {
           baseFrame = matches.first;
@@ -378,7 +386,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       }
 
       _activeFrame = baseFrame.copyWith(
-        name: baseFrame.id != defaultCustomFrame.id ? baseFrame.name : 'Edit Creation #${design.id}',
+        name: baseFrame.name,
         frameBgColor: design.backgroundColor,
         caption: design.text,
         captionColor: design.textColor,
@@ -410,6 +418,20 @@ class _GenerateScreenState extends State<GenerateScreen> {
           orElse: () => BoxFit.cover,
         );
       }
+
+      _photoScale = design.photoScale ?? 1.0;
+      _photoOffset = Offset(design.photoOffsetX ?? 0.0, design.photoOffsetY ?? 0.0);
+      _photoRotation = design.photoRotation ?? 0;
+      _customAngleDegrees = design.customAngleDegrees ?? 0.0;
+      _flipHorizontal = design.flipHorizontal ?? false;
+      _flipVertical = design.flipVertical ?? false;
+      if (design.photoFit != null) {
+        _photoFit = BoxFit.values.firstWhere(
+          (fit) => fit.name == design.photoFit,
+          orElse: () => BoxFit.cover,
+        );
+      }
+      _photoOpacity = design.photoOpacity ?? 1.0;
 
       _studioEffects = _studioEffects.copyWith(
         activeFilterId: _activeFilterId,
@@ -493,9 +515,15 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _textController.addListener(_onTextChange);
     _frameCaptionController.addListener(_onFrameCaptionChange);
 
-    if (widget.initialDesign != null && widget.initialDesign!.backgroundImageBytes != null) {
-      _loadDesignBackgroundImage(widget.initialDesign!.backgroundImageBytes!);
+    if (widget.initialDesign != null) {
+      _restoreDesignMedia(widget.initialDesign!);
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _undoStack.clear();
+      _redoStack.clear();
+      _recordHistory();
+    });
   }
 
   @override
@@ -642,23 +670,83 @@ class _GenerateScreenState extends State<GenerateScreen> {
     );
   }
 
-  Future<void> _loadDesignBackgroundImage(Uint8List bytes) async {
+
+  Future<void> _restoreDesignMedia(MemeDesign design) async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/temp_bg_${DateTime.now().millisecondsSinceEpoch}.png');
-      await tempFile.writeAsBytes(bytes);
-      if (mounted) {
-        setState(() {
-          _frameBgImage = XFile(tempFile.path);
-          _frameBgImageBytes = bytes;
-          _bgMode = 1;
-          _selectedImage = XFile(tempFile.path);
-          _selectedImages = [_selectedImage];
-          _syncPhotoSlots();
-        });
+      // 1. Background image (only when bgMode == 1)
+      if ((design.bgMode ?? 0) == 1) {
+        if (design.frameBgImagePath != null && File(design.frameBgImagePath!).existsSync()) {
+          final bytes = await File(design.frameBgImagePath!).readAsBytes();
+          if (mounted) {
+            setState(() {
+              _frameBgImage = XFile(design.frameBgImagePath!);
+              _frameBgImageBytes = bytes;
+              _bgMode = 1;
+            });
+          }
+        } else if (design.backgroundImageBytes != null) {
+          final tempDir = await getTemporaryDirectory();
+          final tempFile = File(p.join(tempDir.path, 'temp_bg_${DateTime.now().millisecondsSinceEpoch}.png'));
+          await tempFile.writeAsBytes(design.backgroundImageBytes!);
+          if (mounted) {
+            setState(() {
+              _frameBgImage = XFile(tempFile.path);
+              _frameBgImageBytes = design.backgroundImageBytes;
+              _bgMode = 1;
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _frameBgImage = null;
+            _frameBgImageBytes = null;
+            _bgMode = 0;
+          });
+        }
       }
-    } catch (e) {
-      AppLogger.logError('DesignLoad', 'Failed to decode background image', e);
+
+      // 2. Photo slot images (all slots preserved for multi-image frames)
+      final slotPaths = design.slotImagePaths;
+      if (slotPaths != null && slotPaths.isNotEmpty) {
+        final restoredSlots = <XFile?>[];
+        for (final pth in slotPaths) {
+          if (pth != null && File(pth).existsSync()) {
+            restoredSlots.add(XFile(pth));
+          } else {
+            restoredSlots.add(null);
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _selectedImages = restoredSlots;
+            _selectedImage = restoredSlots.isNotEmpty
+                ? restoredSlots.firstWhere((x) => x != null, orElse: () => null)
+                : null;
+            _syncPhotoSlots();
+          });
+        }
+      } else if (design.backgroundImageBytes != null && (design.bgMode ?? 0) == 0) {
+        // Fallback for legacy designs where backgroundImageBytes represented slot 0
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File(p.join(tempDir.path, 'temp_slot_${DateTime.now().millisecondsSinceEpoch}.png'));
+        await tempFile.writeAsBytes(design.backgroundImageBytes!);
+        if (mounted) {
+          setState(() {
+            _selectedImage = XFile(tempFile.path);
+            _selectedImages = [_selectedImage];
+            _syncPhotoSlots();
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _syncPhotoSlots();
+          });
+        }
+      }
+    } catch (e, st) {
+      AppLogger.logError('DesignLoad', 'Failed to restore design media', e, st);
     }
   }
 
@@ -694,7 +782,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
       }
 
       FrameTemplate baseFrame = defaultCustomFrame;
-      if (design.frameId != null) {
+      if (design.frameTemplate != null) {
+        baseFrame = design.frameTemplate!;
+      } else if (design.frameId != null) {
         final matches = predefined100Frames.where((f) => f.id == design.frameId);
         if (matches.isNotEmpty) {
           baseFrame = matches.first;
@@ -704,7 +794,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       }
 
       _activeFrame = baseFrame.copyWith(
-        name: baseFrame.id != defaultCustomFrame.id ? baseFrame.name : 'Edit Creation #${design.id}',
+        name: baseFrame.name,
         frameBgColor: design.backgroundColor,
         caption: design.text,
         captionColor: design.textColor,
@@ -732,6 +822,20 @@ class _GenerateScreenState extends State<GenerateScreen> {
           orElse: () => BoxFit.cover,
         );
       }
+
+      _photoScale = design.photoScale ?? 1.0;
+      _photoOffset = Offset(design.photoOffsetX ?? 0.0, design.photoOffsetY ?? 0.0);
+      _photoRotation = design.photoRotation ?? 0;
+      _customAngleDegrees = design.customAngleDegrees ?? 0.0;
+      _flipHorizontal = design.flipHorizontal ?? false;
+      _flipVertical = design.flipVertical ?? false;
+      if (design.photoFit != null) {
+        _photoFit = BoxFit.values.firstWhere(
+          (fit) => fit.name == design.photoFit,
+          orElse: () => BoxFit.cover,
+        );
+      }
+      _photoOpacity = design.photoOpacity ?? 1.0;
 
       final effectiveTextColor = _customTextColor ?? AppColors.textColors[_textIndex];
       // RESTORE TEXT LAYERS (EXACT USER OFFSETS & MULTIPLE LABELS)
@@ -780,18 +884,13 @@ class _GenerateScreenState extends State<GenerateScreen> {
       );
     });
 
-    if (design.backgroundImageBytes != null) {
-      _loadDesignBackgroundImage(design.backgroundImageBytes!);
-    } else {
-      setState(() {
-        _frameBgImage = null;
-        _frameBgImageBytes = null;
-        _bgMode = 0;
-        _selectedImage = null;
-        _selectedImages = [null];
-        _syncPhotoSlots();
-      });
-    }
+    _restoreDesignMedia(design).then((_) {
+      if (mounted) {
+        _undoStack.clear();
+        _redoStack.clear();
+        _recordHistory();
+      }
+    });
   }
 
   // Undo / Redo History Stacks
@@ -828,6 +927,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       isInverted: _isInverted,
       hasVignette: _hasVignette,
       selectedImage: _selectedImage,
+      selectedImages: List<XFile?>.from(_selectedImages),
       photoOpacity: _photoOpacity,
       photoScale: _photoScale,
       photoOffset: _photoOffset,
@@ -841,6 +941,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       textLayers: _textLayers.map((l) => l.copyWith()).toList(),
       activeTextLayerId: _activeTextLayerId,
       frameBgImage: _frameBgImage,
+      frameBgImageBytes: _frameBgImageBytes,
       frameBgFit: _frameBgFit,
       frameBgOpacity: _frameBgOpacity,
       frameBgBlur: _frameBgBlur,
@@ -871,6 +972,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _isInverted = snap.isInverted;
     _hasVignette = snap.hasVignette;
     _selectedImage = snap.selectedImage;
+    if (snap.selectedImages != null) {
+      _selectedImages = List<XFile?>.from(snap.selectedImages!);
+    } else if (snap.selectedImage != null) {
+      _selectedImages = [snap.selectedImage];
+    } else {
+      _selectedImages = [null];
+    }
+    _syncPhotoSlots();
     _photoOpacity = snap.photoOpacity;
     _photoScale = snap.photoScale;
     _photoOffset = snap.photoOffset;
@@ -881,6 +990,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _photoFit = snap.photoFit;
     _activeFrame = snap.activeFrame;
     _frameBgImage = snap.frameBgImage;
+    _frameBgImageBytes = snap.frameBgImageBytes;
     _frameBgFit = snap.frameBgFit;
     _frameBgOpacity = snap.frameBgOpacity;
     _frameBgBlur = snap.frameBgBlur;
@@ -952,6 +1062,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
       _activeFilterId = 'none';
       _filterIntensity = 1.0;
       _selectedImage = null;
+      _selectedImages = [null];
+      _syncPhotoSlots();
       _frameBgImage = null;
       _frameBgImageBytes = null;
       _bgMode = 0;
@@ -1674,16 +1786,67 @@ class _GenerateScreenState extends State<GenerateScreen> {
     );
   }
 
-  MemeDesign _buildCurrentMemeDesign({
+  Future<MemeDesign> _buildCurrentMemeDesign({
     required Uint8List pngBytes,
     required Uint8List? bgImageBytes,
     required String effectiveText,
-  }) {
+  }) async {
     final primaryOffset = _textLayers.isNotEmpty
         ? _textLayers.first.offset
         : const Offset(0.5, 0.5);
 
     final textLayersJson = jsonEncode(_textLayers.map((l) => l.toJson()).toList());
+
+    // 1. Persist photo slot files so multi-image frames never lose images across app restarts / edits
+    final appDir = await getApplicationDocumentsDirectory();
+    final memeAssetsDir = Directory(p.join(appDir.path, 'meme_assets'));
+    if (!await memeAssetsDir.exists()) {
+      await memeAssetsDir.create(recursive: true);
+    }
+
+    final token = _existingMemeId != null && _existingMemeId! > 0
+        ? 'm_$_existingMemeId'
+        : 'm_${DateTime.now().millisecondsSinceEpoch}';
+
+    final List<String?> slotPaths = [];
+    for (int i = 0; i < _selectedImages.length; i++) {
+      final img = _selectedImages[i];
+      if (img != null) {
+        final ext = p.extension(img.path).isEmpty ? '.png' : p.extension(img.path);
+        final persistentFile = File(p.join(memeAssetsDir.path, '${token}_slot_$i$ext'));
+        if (img.path != persistentFile.path) {
+          final srcBytes = await File(img.path).readAsBytes();
+          await persistentFile.writeAsBytes(srcBytes);
+          _selectedImages[i] = XFile(persistentFile.path);
+        }
+        slotPaths.add(persistentFile.path);
+      } else {
+        slotPaths.add(null);
+      }
+    }
+
+    // 2. Persist canvas background image if in image background mode
+    String? savedFrameBgPath;
+    if (_bgMode == 1) {
+      if (_frameBgImage != null) {
+        final ext = p.extension(_frameBgImage!.path).isEmpty ? '.png' : p.extension(_frameBgImage!.path);
+        final persistentBg = File(p.join(memeAssetsDir.path, '${token}_bg$ext'));
+        if (_frameBgImage!.path != persistentBg.path) {
+          final srcBytes = await File(_frameBgImage!.path).readAsBytes();
+          await persistentBg.writeAsBytes(srcBytes);
+          _frameBgImage = XFile(persistentBg.path);
+        }
+        savedFrameBgPath = persistentBg.path;
+      } else if (_frameBgImageBytes != null) {
+        final persistentBg = File(p.join(memeAssetsDir.path, '${token}_bg.png'));
+        await persistentBg.writeAsBytes(_frameBgImageBytes!);
+        savedFrameBgPath = persistentBg.path;
+        _frameBgImage = XFile(persistentBg.path);
+      }
+    }
+
+    final frameJson = _activeFrame != null ? jsonEncode(_activeFrame!.toJson()) : null;
+    final slotPathsJson = slotPaths.isNotEmpty ? jsonEncode(slotPaths) : null;
 
     return MemeDesign(
       id: _existingMemeId,
@@ -1715,6 +1878,18 @@ class _GenerateScreenState extends State<GenerateScreen> {
       textCase: _currentTextCase,
       frameBgOpacity: _frameBgOpacity,
       frameBgFit: _frameBgFit.name,
+      frameJson: frameJson,
+      slotImagePathsJson: slotPathsJson,
+      frameBgImagePath: savedFrameBgPath,
+      photoScale: _photoScale,
+      photoOffsetX: _photoOffset.dx,
+      photoOffsetY: _photoOffset.dy,
+      photoRotation: _photoRotation,
+      customAngleDegrees: _customAngleDegrees,
+      flipHorizontal: _flipHorizontal,
+      flipVertical: _flipVertical,
+      photoFit: _photoFit.name,
+      photoOpacity: _photoOpacity,
     );
   }
 
@@ -1759,7 +1934,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
               ? _currentText
               : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : 'brat');
 
-          final meme = _buildCurrentMemeDesign(
+          final meme = await _buildCurrentMemeDesign(
             pngBytes: pngBytes,
             bgImageBytes: bgImageBytes,
             effectiveText: effectiveText,
@@ -1868,7 +2043,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   ? _currentText
                   : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : 'brat');
 
-              final meme = _buildCurrentMemeDesign(
+              final meme = await _buildCurrentMemeDesign(
                 pngBytes: pngBytes,
                 bgImageBytes: bgImageBytes,
                 effectiveText: effectiveText,
@@ -4871,6 +5046,7 @@ class EditorSnapshot {
   final bool isInverted;
   final bool hasVignette;
   final XFile? selectedImage;
+  final List<XFile?>? selectedImages;
   final double photoOpacity;
   final double photoScale;
   final Offset photoOffset;
@@ -4884,6 +5060,7 @@ class EditorSnapshot {
   final List<TextLayerModel>? textLayers;
   final String? activeTextLayerId;
   final XFile? frameBgImage;
+  final Uint8List? frameBgImageBytes;
   final BoxFit frameBgFit;
   final double frameBgOpacity;
   final double frameBgBlur;
@@ -4911,6 +5088,7 @@ class EditorSnapshot {
     required this.isInverted,
     required this.hasVignette,
     this.selectedImage,
+    this.selectedImages,
     required this.photoOpacity,
     this.photoScale = 1.0,
     this.photoOffset = Offset.zero,
@@ -4924,6 +5102,7 @@ class EditorSnapshot {
     this.textLayers,
     this.activeTextLayerId,
     this.frameBgImage,
+    this.frameBgImageBytes,
     this.frameBgFit = BoxFit.cover,
     this.frameBgOpacity = 1.0,
     this.frameBgBlur = 0.0,

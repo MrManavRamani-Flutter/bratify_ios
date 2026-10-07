@@ -80,7 +80,19 @@ class DatabaseHelper {
         letterSpacing REAL DEFAULT -0.5,
         textCase TEXT DEFAULT 'lowercase',
         frameBgOpacity REAL DEFAULT 1.0,
-        frameBgFit TEXT DEFAULT 'cover'
+        frameBgFit TEXT DEFAULT 'cover',
+        frameJson TEXT,
+        slotImagePathsJson TEXT,
+        frameBgImagePath TEXT,
+        photoScale REAL DEFAULT 1.0,
+        photoOffsetX REAL DEFAULT 0.0,
+        photoOffsetY REAL DEFAULT 0.0,
+        photoRotation INTEGER DEFAULT 0,
+        customAngleDegrees REAL DEFAULT 0.0,
+        flipHorizontal INTEGER DEFAULT 0,
+        flipVertical INTEGER DEFAULT 0,
+        photoFit TEXT DEFAULT 'cover',
+        photoOpacity REAL DEFAULT 1.0
       )
     ''');
 
@@ -107,6 +119,18 @@ class DatabaseHelper {
         'textcase': 'ALTER TABLE meme_designs ADD COLUMN textCase TEXT DEFAULT "lowercase"',
         'framebgopacity': 'ALTER TABLE meme_designs ADD COLUMN frameBgOpacity REAL DEFAULT 1.0',
         'framebgfit': 'ALTER TABLE meme_designs ADD COLUMN frameBgFit TEXT DEFAULT "cover"',
+        'framejson': 'ALTER TABLE meme_designs ADD COLUMN frameJson TEXT',
+        'slotimagepathsjson': 'ALTER TABLE meme_designs ADD COLUMN slotImagePathsJson TEXT',
+        'framebgimagepath': 'ALTER TABLE meme_designs ADD COLUMN frameBgImagePath TEXT',
+        'photoscale': 'ALTER TABLE meme_designs ADD COLUMN photoScale REAL DEFAULT 1.0',
+        'photooffsetx': 'ALTER TABLE meme_designs ADD COLUMN photoOffsetX REAL DEFAULT 0.0',
+        'photooffsety': 'ALTER TABLE meme_designs ADD COLUMN photoOffsetY REAL DEFAULT 0.0',
+        'photorotation': 'ALTER TABLE meme_designs ADD COLUMN photoRotation INTEGER DEFAULT 0',
+        'customangledegrees': 'ALTER TABLE meme_designs ADD COLUMN customAngleDegrees REAL DEFAULT 0.0',
+        'fliphorizontal': 'ALTER TABLE meme_designs ADD COLUMN flipHorizontal INTEGER DEFAULT 0',
+        'flipvertical': 'ALTER TABLE meme_designs ADD COLUMN flipVertical INTEGER DEFAULT 0',
+        'photofit': 'ALTER TABLE meme_designs ADD COLUMN photoFit TEXT DEFAULT "cover"',
+        'photoopacity': 'ALTER TABLE meme_designs ADD COLUMN photoOpacity REAL DEFAULT 1.0',
       };
 
       for (final entry in migrationColumns.entries) {

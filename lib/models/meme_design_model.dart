@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'frame_model.dart';
 import 'text_layer_model.dart';
 
 class MemeDesign {
@@ -23,6 +24,7 @@ class MemeDesign {
   final double? textOffsetX;
   final double? textOffsetY;
   final int? frameId;
+  final String? frameJson; // Complete serialized FrameTemplate
   final double? aspectRatio;
   final int? bgMode;
   final bool? isTransparentBg;
@@ -35,6 +37,19 @@ class MemeDesign {
   final String? textCase;
   final double? frameBgOpacity;
   final String? frameBgFit;
+
+  // Multi-photo slots & dedicated canvas background persistence
+  final String? slotImagePathsJson; // List of image paths for each slot
+  final String? frameBgImagePath; // Dedicated background image file path
+  final double? photoScale;
+  final double? photoOffsetX;
+  final double? photoOffsetY;
+  final int? photoRotation;
+  final double? customAngleDegrees;
+  final bool? flipHorizontal;
+  final bool? flipVertical;
+  final String? photoFit;
+  final double? photoOpacity;
 
   MemeDesign({
     this.id,
@@ -54,6 +69,7 @@ class MemeDesign {
     this.textOffsetX,
     this.textOffsetY,
     this.frameId,
+    this.frameJson,
     this.aspectRatio,
     this.bgMode,
     this.isTransparentBg,
@@ -66,6 +82,17 @@ class MemeDesign {
     this.textCase,
     this.frameBgOpacity,
     this.frameBgFit,
+    this.slotImagePathsJson,
+    this.frameBgImagePath,
+    this.photoScale,
+    this.photoOffsetX,
+    this.photoOffsetY,
+    this.photoRotation,
+    this.customAngleDegrees,
+    this.flipHorizontal,
+    this.flipVertical,
+    this.photoFit,
+    this.photoOpacity,
   }) : createdAt = createdAt ?? DateTime.now().toIso8601String();
 
   /// Deserialized text layers if present
@@ -77,6 +104,37 @@ class MemeDesign {
         return decoded
             .map((item) => TextLayerModel.fromJson(Map<String, dynamic>.from(item as Map)))
             .toList();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Deserialized frame template if present
+  FrameTemplate? get frameTemplate {
+    if (frameJson != null && frameJson!.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(frameJson!);
+        if (decoded is Map<String, dynamic>) {
+          return FrameTemplate.fromJson(decoded);
+        } else if (decoded is Map) {
+          return FrameTemplate.fromJson(Map<String, dynamic>.from(decoded));
+        }
+      } catch (_) {}
+    }
+    if (frameId != null) {
+      final matches = predefined100Frames.where((f) => f.id == frameId);
+      if (matches.isNotEmpty) return matches.first;
+    }
+    return null;
+  }
+
+  /// Deserialized slot image paths
+  List<String?>? get slotImagePaths {
+    if (slotImagePathsJson == null || slotImagePathsJson!.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(slotImagePathsJson!);
+      if (decoded is List) {
+        return decoded.map((e) => e?.toString()).toList();
       }
     } catch (_) {}
     return null;
@@ -117,6 +175,7 @@ class MemeDesign {
         'textOffsetX': textOffsetX,
         'textOffsetY': textOffsetY,
         'frameId': frameId,
+        'frameJson': frameJson,
         'aspectRatio': aspectRatio,
         'bgMode': bgMode,
         'isTransparentBg': isTransparentBg,
@@ -129,6 +188,17 @@ class MemeDesign {
         'textCase': textCase,
         'frameBgOpacity': frameBgOpacity,
         'frameBgFit': frameBgFit,
+        'slotImagePathsJson': slotImagePathsJson,
+        'frameBgImagePath': frameBgImagePath,
+        'photoScale': photoScale,
+        'photoOffsetX': photoOffsetX,
+        'photoOffsetY': photoOffsetY,
+        'photoRotation': photoRotation,
+        'customAngleDegrees': customAngleDegrees,
+        'flipHorizontal': flipHorizontal,
+        'flipVertical': flipVertical,
+        'photoFit': photoFit,
+        'photoOpacity': photoOpacity,
       };
 
   /// Raw map optimized for SQLite database insertion/updating
@@ -150,6 +220,7 @@ class MemeDesign {
         'textOffsetX': textOffsetX,
         'textOffsetY': textOffsetY,
         'frameId': frameId,
+        'frameJson': frameJson,
         'aspectRatio': aspectRatio,
         'bgMode': bgMode,
         'isTransparentBg': isTransparentBg == null ? null : (isTransparentBg! ? 1 : 0),
@@ -162,6 +233,17 @@ class MemeDesign {
         'textCase': textCase,
         'frameBgOpacity': frameBgOpacity,
         'frameBgFit': frameBgFit,
+        'slotImagePathsJson': slotImagePathsJson,
+        'frameBgImagePath': frameBgImagePath,
+        'photoScale': photoScale,
+        'photoOffsetX': photoOffsetX,
+        'photoOffsetY': photoOffsetY,
+        'photoRotation': photoRotation,
+        'customAngleDegrees': customAngleDegrees,
+        'flipHorizontal': flipHorizontal == null ? null : (flipHorizontal! ? 1 : 0),
+        'flipVertical': flipVertical == null ? null : (flipVertical! ? 1 : 0),
+        'photoFit': photoFit,
+        'photoOpacity': photoOpacity,
       };
 
   factory MemeDesign.fromJson(Map<String, dynamic> json) {
@@ -203,6 +285,7 @@ class MemeDesign {
       textOffsetX: (json['textOffsetX'] as num?)?.toDouble(),
       textOffsetY: (json['textOffsetY'] as num?)?.toDouble(),
       frameId: json['frameId'] as int?,
+      frameJson: json['frameJson'] as String?,
       aspectRatio: (json['aspectRatio'] as num?)?.toDouble(),
       bgMode: json['bgMode'] as int?,
       isTransparentBg: parseBool(json['isTransparentBg']),
@@ -215,6 +298,17 @@ class MemeDesign {
       textCase: json['textCase'] as String?,
       frameBgOpacity: (json['frameBgOpacity'] as num?)?.toDouble(),
       frameBgFit: json['frameBgFit'] as String?,
+      slotImagePathsJson: json['slotImagePathsJson'] as String?,
+      frameBgImagePath: json['frameBgImagePath'] as String?,
+      photoScale: (json['photoScale'] as num?)?.toDouble(),
+      photoOffsetX: (json['photoOffsetX'] as num?)?.toDouble(),
+      photoOffsetY: (json['photoOffsetY'] as num?)?.toDouble(),
+      photoRotation: json['photoRotation'] as int?,
+      customAngleDegrees: (json['customAngleDegrees'] as num?)?.toDouble(),
+      flipHorizontal: parseBool(json['flipHorizontal']),
+      flipVertical: parseBool(json['flipVertical']),
+      photoFit: json['photoFit'] as String?,
+      photoOpacity: (json['photoOpacity'] as num?)?.toDouble(),
     );
   }
 }
@@ -238,6 +332,7 @@ extension MemeDesignCopyWith on MemeDesign {
     double? textOffsetX,
     double? textOffsetY,
     int? frameId,
+    String? frameJson,
     double? aspectRatio,
     int? bgMode,
     bool? isTransparentBg,
@@ -250,6 +345,17 @@ extension MemeDesignCopyWith on MemeDesign {
     String? textCase,
     double? frameBgOpacity,
     String? frameBgFit,
+    String? slotImagePathsJson,
+    String? frameBgImagePath,
+    double? photoScale,
+    double? photoOffsetX,
+    double? photoOffsetY,
+    int? photoRotation,
+    double? customAngleDegrees,
+    bool? flipHorizontal,
+    bool? flipVertical,
+    String? photoFit,
+    double? photoOpacity,
   }) {
     return MemeDesign(
       id: id ?? this.id,
@@ -269,6 +375,7 @@ extension MemeDesignCopyWith on MemeDesign {
       textOffsetX: textOffsetX ?? this.textOffsetX,
       textOffsetY: textOffsetY ?? this.textOffsetY,
       frameId: frameId ?? this.frameId,
+      frameJson: frameJson ?? this.frameJson,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       bgMode: bgMode ?? this.bgMode,
       isTransparentBg: isTransparentBg ?? this.isTransparentBg,
@@ -281,6 +388,17 @@ extension MemeDesignCopyWith on MemeDesign {
       textCase: textCase ?? this.textCase,
       frameBgOpacity: frameBgOpacity ?? this.frameBgOpacity,
       frameBgFit: frameBgFit ?? this.frameBgFit,
+      slotImagePathsJson: slotImagePathsJson ?? this.slotImagePathsJson,
+      frameBgImagePath: frameBgImagePath ?? this.frameBgImagePath,
+      photoScale: photoScale ?? this.photoScale,
+      photoOffsetX: photoOffsetX ?? this.photoOffsetX,
+      photoOffsetY: photoOffsetY ?? this.photoOffsetY,
+      photoRotation: photoRotation ?? this.photoRotation,
+      customAngleDegrees: customAngleDegrees ?? this.customAngleDegrees,
+      flipHorizontal: flipHorizontal ?? this.flipHorizontal,
+      flipVertical: flipVertical ?? this.flipVertical,
+      photoFit: photoFit ?? this.photoFit,
+      photoOpacity: photoOpacity ?? this.photoOpacity,
     );
   }
 }

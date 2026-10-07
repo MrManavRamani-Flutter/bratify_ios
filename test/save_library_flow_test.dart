@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:brat_generator/constants/app_colors.dart';
+import 'package:brat_generator/models/frame_model.dart';
 import 'package:brat_generator/models/meme_design_model.dart';
 import 'package:brat_generator/models/text_layer_model.dart';
 import 'package:brat_generator/screens/generate_screen.dart';
@@ -228,6 +229,127 @@ void main() {
       expect(layers.first.offset.dx, 0.25);
       expect(layers.first.offset.dy, 0.18);
       expect(layers.first.text, 'custom placed text');
+    });
+
+    test('MemeDesign preserves full FrameTemplate with multi-photo layout (split2H) and slotImagePathsJson', () {
+      final custom2PhotoFrame = FrameTemplate(
+        id: 1,
+        name: 'Split 2 Horizontal',
+        category: 'Collage',
+        photoLayout: FramePhotoLayout.split2H,
+        maxPhotos: 2,
+        padding: const EdgeInsets.all(12),
+        borderWidth: 6.0,
+        borderRadius: 16.0,
+        borderColor: Colors.white,
+        frameBgColor: Colors.black,
+        slotSpacing: 8.0,
+      );
+
+      final meme = MemeDesign(
+        backgroundColor: Colors.black,
+        text: '2 photo split post',
+        textAlign: TextAlign.center,
+        fontFamily: 'Arial',
+        fontSize: 32,
+        fontWeight: 'Bold',
+        textColor: Colors.white,
+        frameId: 1,
+        frameJson: jsonEncode(custom2PhotoFrame.toJson()),
+        slotImagePathsJson: jsonEncode(['/path/to/slot0.png', '/path/to/slot1.png']),
+        frameBgImagePath: '/path/to/bg.png',
+        photoScale: 1.25,
+        photoOffsetX: 0.1,
+        photoOffsetY: -0.05,
+        photoRotation: 90,
+        filterId: 'neon_noir',
+        filterIntensity: 0.8,
+      );
+
+      final dbMap = meme.toDbMap();
+      expect(dbMap['frameJson'], isNotNull);
+      expect(dbMap['slotImagePathsJson'], isNotNull);
+      expect(dbMap['frameBgImagePath'], '/path/to/bg.png');
+      expect(dbMap['photoScale'], 1.25);
+      expect(dbMap['photoOffsetX'], 0.1);
+      expect(dbMap['photoOffsetY'], -0.05);
+      expect(dbMap['photoRotation'], 90);
+      expect(dbMap['filterId'], 'neon_noir');
+      expect(dbMap['filterIntensity'], 0.8);
+
+      final restored = MemeDesign.fromJson(dbMap);
+      expect(restored.frameTemplate, isNotNull);
+      expect(restored.frameTemplate!.photoLayout, FramePhotoLayout.split2H);
+      expect(restored.frameTemplate!.maxPhotos, 2);
+      expect(restored.frameTemplate!.borderWidth, 6.0);
+      expect(restored.frameTemplate!.borderRadius, 16.0);
+      expect(restored.slotImagePaths, ['/path/to/slot0.png', '/path/to/slot1.png']);
+      expect(restored.frameBgImagePath, '/path/to/bg.png');
+      expect(restored.photoScale, 1.25);
+      expect(restored.photoOffsetX, 0.1);
+      expect(restored.photoOffsetY, -0.05);
+      expect(restored.photoRotation, 90);
+    });
+
+    testWidgets('GenerateScreen restores 2-photo split layout (split2H) without reverting to default single photo frame', (WidgetTester tester) async {
+      final custom2PhotoFrame = FrameTemplate(
+        id: 1,
+        name: 'Split 2 Horizontal',
+        category: 'Collage',
+        photoLayout: FramePhotoLayout.split2H,
+        maxPhotos: 2,
+        padding: const EdgeInsets.all(12),
+        borderWidth: 6.0,
+        borderRadius: 16.0,
+        borderColor: Colors.white,
+        frameBgColor: Colors.black,
+      );
+
+      final designWith2Photos = MemeDesign(
+        id: 101,
+        backgroundColor: Colors.black,
+        text: 'split two photos',
+        textAlign: TextAlign.center,
+        fontFamily: 'Arial',
+        fontSize: 32,
+        fontWeight: 'Bold',
+        textColor: Colors.white,
+        frameId: 1,
+        frameJson: jsonEncode(custom2PhotoFrame.toJson()),
+        slotImagePathsJson: jsonEncode(['slot0.png', 'slot1.png']),
+        photoScale: 1.4,
+        photoRotation: 90,
+        filterId: 'cyan_glow',
+        filterIntensity: 0.75,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GenerateScreen(
+            initialDesign: designWith2Photos,
+            isDedicatedEditScreen: true,
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final generateState = tester.state(find.byType(GenerateScreen));
+      expect(generateState, isNotNull);
+
+      // Verify active frame is Split 2 Horizontal, NOT single photo
+      final activeFrame = (generateState as dynamic).activeFrame as FrameTemplate?;
+      expect(activeFrame, isNotNull);
+      expect(activeFrame!.photoLayout, FramePhotoLayout.split2H);
+      expect(activeFrame.maxPhotos, 2);
+      expect(activeFrame.borderWidth, 6.0);
+      expect(activeFrame.borderRadius, 16.0);
+
+      // Verify photo transforms and filter restored
+      expect((generateState as dynamic).photoScale, 1.4);
+      expect((generateState as dynamic).photoRotation, 90);
+      expect((generateState as dynamic).activeFilterId, 'cyan_glow');
+      expect((generateState as dynamic).filterIntensity, 0.75);
     });
   });
 }

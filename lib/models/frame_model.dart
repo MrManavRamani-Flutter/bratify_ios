@@ -114,6 +114,70 @@ class FrameTemplate {
       slotSpacing: slotSpacing ?? this.slotSpacing,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'category': category,
+        'frameBgColor': frameBgColor.toARGB32(),
+        'borderColor': borderColor.toARGB32(),
+        'borderWidth': borderWidth,
+        'borderRadius': borderRadius,
+        'padding_left': padding.left,
+        'padding_top': padding.top,
+        'padding_right': padding.right,
+        'padding_bottom': padding.bottom,
+        'aspectRatio': aspectRatio,
+        'caption': caption,
+        'captionFont': captionFont,
+        'captionColor': captionColor.toARGB32(),
+        'captionSize': captionSize,
+        'overlayType': overlayType.index,
+        'hasFilmGrain': hasFilmGrain,
+        'hasShadow': hasShadow,
+        'photoLayout': photoLayout.index,
+        'maxPhotos': maxPhotos,
+        'slotSpacing': slotSpacing,
+      };
+
+  factory FrameTemplate.fromJson(Map<String, dynamic> json) => FrameTemplate(
+        id: json['id'] as int? ?? 1,
+        name: json['name'] as String? ?? 'Custom Frame',
+        category: json['category'] as String? ?? 'Custom',
+        frameBgColor: json['frameBgColor'] != null
+            ? Color(json['frameBgColor'] as int)
+            : Colors.white,
+        borderColor: json['borderColor'] != null
+            ? Color(json['borderColor'] as int)
+            : Colors.black,
+        borderWidth: (json['borderWidth'] as num?)?.toDouble() ?? 0.0,
+        borderRadius: (json['borderRadius'] as num?)?.toDouble() ?? 16.0,
+        padding: EdgeInsets.fromLTRB(
+          (json['padding_left'] as num?)?.toDouble() ?? 12.0,
+          (json['padding_top'] as num?)?.toDouble() ?? 12.0,
+          (json['padding_right'] as num?)?.toDouble() ?? 12.0,
+          (json['padding_bottom'] as num?)?.toDouble() ?? 12.0,
+        ),
+        aspectRatio: (json['aspectRatio'] as num?)?.toDouble() ?? 1.0,
+        caption: json['caption'] as String? ?? '',
+        captionFont: json['captionFont'] as String? ?? 'Arial',
+        captionColor: json['captionColor'] != null
+            ? Color(json['captionColor'] as int)
+            : Colors.black,
+        captionSize: (json['captionSize'] as num?)?.toDouble() ?? 14.0,
+        overlayType: json['overlayType'] != null &&
+                (json['overlayType'] as int) < FrameOverlayType.values.length
+            ? FrameOverlayType.values[json['overlayType'] as int]
+            : FrameOverlayType.none,
+        hasFilmGrain: json['hasFilmGrain'] == true || json['hasFilmGrain'] == 1,
+        hasShadow: json['hasShadow'] == true || json['hasShadow'] == 1,
+        photoLayout: json['photoLayout'] != null &&
+                (json['photoLayout'] as int) < FramePhotoLayout.values.length
+            ? FramePhotoLayout.values[json['photoLayout'] as int]
+            : FramePhotoLayout.single,
+        maxPhotos: json['maxPhotos'] as int? ?? 1,
+        slotSpacing: (json['slotSpacing'] as num?)?.toDouble() ?? 4.0,
+      );
 }
 
 /// Versatile starter layouts that the user can pick from and fully customize.
