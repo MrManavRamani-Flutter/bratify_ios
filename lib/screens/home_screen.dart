@@ -46,16 +46,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openEditor({FrameTemplate? frame, MemeDesign? design}) {
     HapticFeedback.mediumImpact();
+    FrameTemplate? effectiveFrame = frame;
+    if (design != null && design.frameId != null) {
+      final matches = predefined100Frames.where((f) => f.id == design.frameId);
+      if (matches.isNotEmpty) {
+        effectiveFrame = matches.first;
+      }
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (ctx) => GenerateScreen(
-          initialFrame: frame ?? defaultCustomFrame,
+          initialFrame: effectiveFrame ?? defaultCustomFrame,
           initialDesign: design,
           isDedicatedEditScreen: true,
         ),
       ),
-    );
+    ).then((result) {
+      _loadRecentDesigns();
+      DatabaseHelper.savedMemesChangeNotifier.value++;
+      if (result == 'library') {
+        widget.onOpenLibrary();
+      }
+    });
   }
 
   @override

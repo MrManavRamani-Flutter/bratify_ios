@@ -24,6 +24,7 @@ class SaveScreen extends StatefulWidget {
 
 class _SaveScreenState extends State<SaveScreen> {
   List<MemeDesign> savedMemes = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -49,6 +50,7 @@ class _SaveScreenState extends State<SaveScreen> {
     if (!mounted) return;
     setState(() {
       savedMemes = memes;
+      _isLoading = false;
     });
   }
 
@@ -81,66 +83,98 @@ class _SaveScreenState extends State<SaveScreen> {
               // Main Content
               Padding(
                 padding: EdgeInsets.only(top: ipad ? 80 : 55),
-                child: (savedMemes.isEmpty)
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  color: AppColors.bratGreen.withValues(alpha: 0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: const Icon(
-                                  Icons.bookmark_border_rounded,
-                                  size: 38,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                "Your Library is Empty",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black87,
-                                  letterSpacing: -0.4,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "Create iconic brat memes and presets in Studio, then tap Save to build your collection.",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  color: Colors.grey.shade600,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
+                child: _isLoading && savedMemes.isEmpty
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.bratGreen),
                         ),
                       )
-                    : AlignedGridView.count(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: ipad ? 20 : 10,
-                          vertical: ipad ? 15 : 5,
-                        ),
-                        crossAxisCount: crossAxisCount,
-                        mainAxisSpacing: mainAxisSpacing - (ipad ? 10 : 0),
-                        crossAxisSpacing: crossAxisSpacing - (ipad ? 5 : 10),
-                        itemCount: savedMemes.length,
-                        itemBuilder: (context, index) {
-                          final memeItem = savedMemes[index];
-                          return _buildGridItem(context, memeItem);
-                        },
-                      ),
+                    : (savedMemes.isEmpty)
+                        ? RefreshIndicator(
+                            onRefresh: loadSavedMemes,
+                            color: Colors.black,
+                            backgroundColor: AppColors.bratGreen,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) => SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(
+                                  parent: BouncingScrollPhysics(),
+                                ),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: constraints.maxHeight,
+                                  ),
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 72,
+                                            height: 72,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.bratGreen.withValues(alpha: 0.2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: const Icon(
+                                              Icons.bookmark_border_rounded,
+                                              size: 38,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          const Text(
+                                            "Your Library is Empty",
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.black87,
+                                              letterSpacing: -0.4,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            "Create iconic brat memes and presets in Studio, then tap Save to build your collection.",
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              height: 1.4,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: loadSavedMemes,
+                            color: Colors.black,
+                            backgroundColor: AppColors.bratGreen,
+                            child: AlignedGridView.count(
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ipad ? 20 : 10,
+                                vertical: ipad ? 15 : 5,
+                              ),
+                              crossAxisCount: crossAxisCount,
+                              mainAxisSpacing: mainAxisSpacing - (ipad ? 10 : 0),
+                              crossAxisSpacing: crossAxisSpacing - (ipad ? 5 : 10),
+                              itemCount: savedMemes.length,
+                              itemBuilder: (context, index) {
+                                final memeItem = savedMemes[index];
+                                return _buildGridItem(context, memeItem);
+                              },
+                            ),
+                          ),
               ),
             ],
           ),
@@ -152,7 +186,7 @@ class _SaveScreenState extends State<SaveScreen> {
   Widget _buildGridItem(BuildContext context, MemeDesign memeDesign) {
     // height : 185 Total
     return Padding(
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       child: Container(
         padding: EdgeInsets.symmetric(
           vertical: ipad ? 10 : 5,
@@ -161,29 +195,34 @@ class _SaveScreenState extends State<SaveScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: Colors.black12,
               blurRadius: 4,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             ),
           ],
         ),
         child: Column(
           children: [
-            // Image Banner with fixed height
-            SizedBox(
-              height: ipad ? 200 : 120, // Adjust height as needed
-              width: double.infinity,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: (memeDesign.imageBytes != null)
-                    ? Image.memory(
-                        memeDesign.imageBytes!,
-                        fit: BoxFit.fill,
-                        width: double.infinity,
-                      )
-                    : const Placeholder(),
+            // Image Banner with fixed height (tap to open & edit)
+            GestureDetector(
+              onTap: () => widget.onEditSelected(memeDesign),
+              child: SizedBox(
+                height: ipad ? 200 : 120, // Adjust height as needed
+                width: double.infinity,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: (memeDesign.imageBytes != null && memeDesign.imageBytes!.isNotEmpty)
+                      ? Image.memory(
+                          memeDesign.imageBytes!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildFallbackPreview(memeDesign),
+                        )
+                      : _buildFallbackPreview(memeDesign),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -222,6 +261,27 @@ class _SaveScreenState extends State<SaveScreen> {
             ),
             const SizedBox(height: 10),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackPreview(MemeDesign meme) {
+    return Container(
+      width: double.infinity,
+      color: meme.backgroundColor,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(8.0),
+      child: Text(
+        meme.text,
+        textAlign: meme.textAlign,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: meme.textColor,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          fontFamily: meme.fontFamily,
         ),
       ),
     );

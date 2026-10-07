@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../features/studio_effects/studio_effects_model.dart';
 import '../models/frame_model.dart';
+import '../models/studio_filter_model.dart';
 
 class FrameCanvasWidget extends StatelessWidget {
   final FrameTemplate frame;
@@ -28,6 +30,12 @@ class FrameCanvasWidget extends StatelessWidget {
   final List<XFile?>? imageFiles;
   final Function(int slotIndex)? onPickSlotImage;
   final Function(int slotIndex)? onSlotPhotoTap;
+  final XFile? frameBgImage;
+  final Uint8List? frameBgImageBytes;
+  final BoxFit frameBgFit;
+  final double frameBgOpacity;
+  final double frameBgBlur;
+  final bool isExporting;
 
   const FrameCanvasWidget({
     super.key,
@@ -52,17 +60,25 @@ class FrameCanvasWidget extends StatelessWidget {
     this.imageFiles,
     this.onPickSlotImage,
     this.onSlotPhotoTap,
+    this.frameBgImage,
+    this.frameBgImageBytes,
+    this.frameBgFit = BoxFit.cover,
+    this.frameBgOpacity = 1.0,
+    this.frameBgBlur = 0.0,
+    this.isExporting = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final effectiveRatio = frame.aspectRatio.clamp(0.4, 2.5);
 
+    final hasBgImage = frameBgImage != null || frameBgImageBytes != null;
+
     Widget canvasContent = AspectRatio(
       aspectRatio: effectiveRatio,
       child: Container(
         decoration: BoxDecoration(
-          color: frame.frameBgColor,
+          color: hasBgImage ? Colors.transparent : frame.frameBgColor,
           borderRadius: BorderRadius.circular(frame.borderRadius.clamp(0.0, 48.0)),
           border: frame.borderWidth > 0
               ? Border.all(
@@ -87,6 +103,23 @@ class FrameCanvasWidget extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // 0. Base frame background color
+              Container(color: frame.frameBgColor),
+
+              // 1. Frame Background Image (rendered at bottom of stack)
+              if (hasBgImage)
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: frameBgOpacity.clamp(0.0, 1.0),
+                    child: frameBgBlur > 0.05
+                        ? ImageFiltered(
+                            imageFilter: ui.ImageFilter.blur(sigmaX: frameBgBlur, sigmaY: frameBgBlur),
+                            child: _buildBgImageWidget(),
+                          )
+                        : _buildBgImageWidget(),
+                  ),
+                ),
+
               // Retro Windows 98 Title Bar Overlay
               if (frame.overlayType == FrameOverlayType.retroWindow)
                 Positioned(
@@ -309,19 +342,31 @@ class FrameCanvasWidget extends StatelessWidget {
       ),
     );
 
-    if (studioEffects?.isInverted == true) {
-      return ColorFiltered(
+    Widget result = canvasContent;
+
+    final filterId = studioEffects?.activeFilterId ?? 'none';
+    final filterIntensity = studioEffects?.filterIntensity ?? 1.0;
+    if (filterId != 'none' && filterIntensity > 0.01) {
+      final matrix = StudioFilterCatalog.getMatrix(filterId, intensity: filterIntensity);
+      result = ColorFiltered(
+        colorFilter: ColorFilter.matrix(matrix),
+        child: result,
+      );
+    }
+
+    if (studioEffects?.isInverted == true && filterId != 'invert') {
+      result = ColorFiltered(
         colorFilter: const ColorFilter.matrix([
           -1, 0, 0, 0, 255,
           0, -1, 0, 0, 255,
           0, 0, -1, 0, 255,
           0, 0, 0, 1, 0,
         ]),
-        child: canvasContent,
+        child: result,
       );
     }
 
-    return canvasContent;
+    return result;
   }
 
   Widget _buildBlurredText({
@@ -476,8 +521,30 @@ class FrameCanvasWidget extends StatelessWidget {
     }
   }
 
+  Widget _buildBgImageWidget() {
+    if (frameBgImage != null) {
+      return Image.file(
+        File(frameBgImage!.path),
+        fit: frameBgFit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    } else if (frameBgImageBytes != null) {
+      return Image.memory(
+        frameBgImageBytes!,
+        fit: frameBgFit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   Widget _buildSinglePhotoSlot(BuildContext context, int slotIndex, XFile? slotFile) {
     final hasImage = slotFile != null;
+    final hasBgImage = frameBgImage != null || frameBgImageBytes != null;
     return GestureDetector(
       onTap: () {
         if (hasImage) {
@@ -497,7 +564,7 @@ class FrameCanvasWidget extends StatelessWidget {
         }
       },
       child: Container(
-        color: Colors.black12,
+        color: (hasBgImage && !hasImage) ? Colors.transparent : Colors.black12,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -521,6 +588,30 @@ class FrameCanvasWidget extends StatelessWidget {
                   ),
                 ),
               )
+            else if (hasBgImage)
+              isExporting
+                  ? const SizedBox.shrink()
+                  : Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.add_photo_alternate_outlined, size: 13, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              frame.maxPhotos > 1 ? 'Slot ${slotIndex + 1}' : '+ Photo Cutout',
+                              style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
             else
               _buildPlaceholder(slotIndex: slotIndex),
 

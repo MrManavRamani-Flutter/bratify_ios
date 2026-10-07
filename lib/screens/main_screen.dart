@@ -58,17 +58,28 @@ class MainScreenState extends State<MainScreen> {
 
   void openEditor({FrameTemplate? frame, MemeDesign? design}) {
     HapticFeedback.lightImpact();
+    FrameTemplate? effectiveFrame = frame;
+    if (design != null && design.frameId != null) {
+      final matches = predefined100Frames.where((f) => f.id == design.frameId);
+      if (matches.isNotEmpty) {
+        effectiveFrame = matches.first;
+      }
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (ctx) => GenerateScreen(
-          initialFrame: frame ?? defaultCustomFrame,
+          initialFrame: effectiveFrame ?? defaultCustomFrame,
           initialDesign: design,
           isDedicatedEditScreen: true,
         ),
       ),
-    ).then((_) {
+    ).then((result) {
       loadSavedMemes();
+      DatabaseHelper.savedMemesChangeNotifier.value++;
+      if (result == 'library') {
+        _onItemTapped(1);
+      }
     });
   }
 
@@ -81,6 +92,10 @@ class MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedIndex = index;
     });
+    if (index == 1) {
+      loadSavedMemes();
+      DatabaseHelper.savedMemesChangeNotifier.value++;
+    }
   }
 
   @override

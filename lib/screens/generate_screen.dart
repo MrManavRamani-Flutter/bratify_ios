@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -18,6 +19,7 @@ import '../features/studio_effects/studio_effects_model.dart';
 import '../features/studio_effects/studio_effects_sheet.dart';
 import '../models/frame_model.dart';
 import '../models/meme_design_model.dart';
+import '../models/studio_filter_model.dart';
 import '../models/text_layer_model.dart';
 import '../my_app.dart';
 import '../services/database_service.dart';
@@ -96,6 +98,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
   List<TextLayerModel> _textLayers = [];
   String? _activeTextLayerId;
   bool _isExporting = false;
+
+  List<TextLayerModel> get textLayers => _textLayers;
+  FrameTemplate? get activeFrame => _activeFrame;
+  double get aspectRatio => _aspectRatio;
 
   TextLayerModel? get _activeTextLayer {
     if (_textLayers.isEmpty) return null;
@@ -259,6 +265,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
   bool _hasVignette = false;
   bool _isInverted = false;
 
+  // 12+ Aesthetic Visual Filters
+  String _activeFilterId = 'none';
+  double _filterIntensity = 1.0;
+
   // 100x Viral Studio Effects & Badges State
   StudioEffectsModel _studioEffects = const StudioEffectsModel();
 
@@ -272,6 +282,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
   bool _flipHorizontal = false; // Mirror X
   bool _flipVertical = false; // Mirror Y
   BoxFit _photoFit = BoxFit.cover;
+
+  // Dedicated Frame Background Image State (replaces solid background color)
+  XFile? _frameBgImage;
+  Uint8List? _frameBgImageBytes;
+  BoxFit _frameBgFit = BoxFit.cover;
+  double _frameBgOpacity = 1.0;
+  double _frameBgBlur = 0.0;
+  int _bgMode = 0; // 0: Solid Color, 1: Background Image
 
   // Active Tool Tab:
   // 0: 100 Frames, 1: Modify Frame, 2: Text, 3: Style, 4: Theme, 5: Ratio, 6: FX, 7: Photo
@@ -316,46 +334,168 @@ class _GenerateScreenState extends State<GenerateScreen> {
   @override
   void initState() {
     super.initState();
-    _activeFrame = widget.initialFrame ?? defaultCustomFrame;
-    _frameCaptionController.text = _activeFrame?.caption ?? '';
-    _aspectRatio = _activeFrame!.aspectRatio;
-    _studioEffects = _studioEffects.copyWith(aspectRatio: _aspectRatio);
-    _syncPhotoSlots();
 
-    final initialTextStr = (widget.initialText != null && widget.initialText!.isNotEmpty)
-        ? widget.initialText!
-        : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : _currentText);
-    _currentText = initialTextStr;
-    _activeFrame = _activeFrame!.copyWith(caption: _currentText);
+    if (widget.initialDesign != null) {
+      final design = widget.initialDesign!;
+      _existingMemeId = design.id;
+      _currentText = design.text;
+      _currentAlignment = design.textAlign;
+      _currentFontFamily = design.fontFamily;
+      _currentFontSize = design.fontSize.clamp(14.0, 72.0);
+      _currentFontWeight = design.fontWeight;
+
+      // Text color match
+      final textColorIndex = AppColors.textColors.indexWhere(
+        (c) => c.toARGB32() == design.textColor.toARGB32(),
+      );
+      if (textColorIndex != -1) {
+        _textIndex = textColorIndex;
+        _customTextColor = null;
+      } else {
+        _customTextColor = design.textColor;
+      }
+
+      // Background color match
+      final bgColorIndex = AppColors.bgColors.indexWhere(
+        (c) => c.toARGB32() == design.backgroundColor.toARGB32(),
+      );
+      if (bgColorIndex != -1) {
+        _bgIndex = bgColorIndex;
+        _customBgColor = null;
+      } else {
+        _customBgColor = design.backgroundColor;
+      }
+
+      // Restore Frame preset
+      FrameTemplate baseFrame = defaultCustomFrame;
+      if (design.frameId != null) {
+        final matches = predefined100Frames.where((f) => f.id == design.frameId);
+        if (matches.isNotEmpty) {
+          baseFrame = matches.first;
+        }
+      } else if (widget.initialFrame != null) {
+        baseFrame = widget.initialFrame!;
+      }
+
+      _activeFrame = baseFrame.copyWith(
+        name: baseFrame.id != defaultCustomFrame.id ? baseFrame.name : 'Edit Creation #${design.id}',
+        frameBgColor: design.backgroundColor,
+        caption: design.text,
+        captionColor: design.textColor,
+        captionFont: design.fontFamily,
+        captionSize: design.fontSize.clamp(14.0, 72.0),
+        aspectRatio: design.aspectRatio ?? baseFrame.aspectRatio,
+      );
+
+      _aspectRatio = design.aspectRatio ?? _activeFrame!.aspectRatio;
+      _bgMode = design.bgMode ?? 0;
+      _isTransparentBg = design.isTransparentBg ?? false;
+      _blurSigma = design.blurSigma ?? 0.0;
+      _hasFilmGrain = design.hasFilmGrain ?? true;
+      _grainOpacity = design.grainOpacity ?? 0.12;
+      _isInverted = design.isInverted ?? false;
+      _hasVignette = design.hasVignette ?? false;
+      _letterSpacing = design.letterSpacing ?? -0.5;
+      _currentTextCase = design.textCase ?? 'lowercase';
+      if (design.filterId.isNotEmpty && design.filterId != 'none') {
+        _activeFilterId = design.filterId;
+        _filterIntensity = design.filterIntensity;
+      }
+      if (design.frameBgOpacity != null) {
+        _frameBgOpacity = design.frameBgOpacity!;
+      }
+      if (design.frameBgFit != null) {
+        _frameBgFit = BoxFit.values.firstWhere(
+          (fit) => fit.name == design.frameBgFit,
+          orElse: () => BoxFit.cover,
+        );
+      }
+
+      _studioEffects = _studioEffects.copyWith(
+        activeFilterId: _activeFilterId,
+        filterIntensity: _filterIntensity,
+        aspectRatio: _aspectRatio,
+        isInverted: _isInverted,
+        hasVignette: _hasVignette,
+        hasFilmGrain: _hasFilmGrain,
+        grainOpacity: _grainOpacity,
+        blurSigma: _blurSigma,
+      );
+
+      final effectiveTextColor = _customTextColor ?? AppColors.textColors[_textIndex];
+      // RESTORE TEXT LAYERS (PRESERVING EXACT USER OFFSETS & MULTIPLE LABELS)
+      if (design.textLayers != null && design.textLayers!.isNotEmpty) {
+        _textLayers = design.textLayers!;
+      } else {
+        final savedOffset = Offset(
+          design.textOffsetX ?? 0.5,
+          design.textOffsetY ?? 0.5,
+        );
+        _textLayers = [
+          TextLayerModel(
+            id: 'layer_1',
+            text: _currentText,
+            fontFamily: _currentFontFamily,
+            fontSize: _currentFontSize,
+            fontWeight: _currentFontWeight,
+            textColor: effectiveTextColor,
+            textAlign: _currentAlignment,
+            letterSpacing: _letterSpacing,
+            lineHeight: 1.05,
+            textCase: _currentTextCase,
+            blurSigma: _blurSigma,
+            offset: savedOffset,
+          ),
+        ];
+      }
+      _activeTextLayerId = _textLayers.first.id;
+    } else {
+      _activeFrame = widget.initialFrame ?? defaultCustomFrame;
+      final initialTextStr = (widget.initialText != null && widget.initialText!.isNotEmpty)
+          ? widget.initialText!
+          : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : _currentText);
+      _currentText = initialTextStr;
+      _activeFrame = _activeFrame!.copyWith(caption: _currentText);
+      _aspectRatio = _activeFrame!.aspectRatio;
+      _studioEffects = _studioEffects.copyWith(aspectRatio: _aspectRatio);
+
+      final effectiveTextColor = _customTextColor ?? AppColors.textColors[_textIndex];
+      _textLayers = [
+        TextLayerModel(
+          id: 'layer_1',
+          text: _currentText,
+          fontFamily: _currentFontFamily,
+          fontSize: _currentFontSize,
+          fontWeight: _currentFontWeight,
+          textColor: effectiveTextColor,
+          textAlign: _currentAlignment,
+          letterSpacing: _letterSpacing,
+          lineHeight: 1.05,
+          textCase: _currentTextCase,
+          blurSigma: _blurSigma,
+          offset: const Offset(0.5, 0.5),
+        ),
+      ];
+      _activeTextLayerId = 'layer_1';
+    }
+
     _frameCaptionController.text = _currentText;
     _textController.text = _currentText;
-    _textLayers = [
-      TextLayerModel(
-        id: 'layer_1',
-        text: _currentText,
-        fontFamily: _activeFrame?.captionFont ?? _currentFontFamily,
-        fontSize: _activeFrame!.captionSize.clamp(14.0, 72.0),
-        fontWeight: _currentFontWeight,
-        textColor: _activeFrame?.captionColor ?? _getEffectiveTextColor(),
-        textAlign: _currentAlignment,
-        letterSpacing: _letterSpacing,
-        lineHeight: 1.05,
-        textCase: _currentTextCase,
-        blurSigma: _blurSigma,
-        offset: const Offset(0.5, 0.88),
-      ),
-    ];
-    _activeTextLayerId = 'layer_1';
 
     if (widget.initialImage != null) {
       _selectedImage = widget.initialImage;
       _syncPhotoSlots();
+    } else {
+      _syncPhotoSlots();
     }
     _selectedTab = 0; // Default to Tab 0: Layout & Slots
 
-    _initializeDesign();
     _textController.addListener(_onTextChange);
     _frameCaptionController.addListener(_onFrameCaptionChange);
+
+    if (widget.initialDesign != null && widget.initialDesign!.backgroundImageBytes != null) {
+      _loadDesignBackgroundImage(widget.initialDesign!.backgroundImageBytes!);
+    }
   }
 
   @override
@@ -403,7 +543,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       });
     }
     if (widget.initialDesign != null && widget.initialDesign != oldWidget.initialDesign) {
-      _initializeDesign();
+      _applyLoadedDesign(widget.initialDesign!);
     }
   }
 
@@ -420,6 +560,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
     if (_textController.text != _currentText) {
       setState(() {
         _currentText = _textController.text;
+        if (_activeFrame != null) {
+          _activeFrame = _activeFrame!.copyWith(caption: _currentText);
+        }
+        if (_frameCaptionController.text != _currentText) {
+          _frameCaptionController.text = _currentText;
+        }
         if (_textLayers.isNotEmpty) {
           final idx = _textLayers.indexWhere((l) => l.id == _activeTextLayerId);
           if (idx != -1) {
@@ -436,6 +582,13 @@ class _GenerateScreenState extends State<GenerateScreen> {
     if (_activeFrame != null && _frameCaptionController.text != _activeFrame!.caption) {
       setState(() {
         _activeFrame = _activeFrame!.copyWith(caption: _frameCaptionController.text);
+        _currentText = _frameCaptionController.text;
+        if (_textController.text != _currentText) {
+          _textController.text = _currentText;
+        }
+        if (_textLayers.isNotEmpty) {
+          _textLayers[0] = _textLayers[0].copyWith(text: _currentText);
+        }
       });
     }
   }
@@ -446,6 +599,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
       context,
       currentEffects: _studioEffects.copyWith(
         aspectRatio: _activeFrame?.aspectRatio ?? _aspectRatio,
+        activeFilterId: _activeFilterId,
+        filterIntensity: _filterIntensity,
       ),
       onEffectsChanged: (updated) {
         setState(() {
@@ -455,6 +610,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
           _grainOpacity = updated.grainOpacity;
           _hasVignette = updated.hasVignette;
           _isInverted = updated.isInverted;
+          _activeFilterId = updated.activeFilterId;
+          _filterIntensity = updated.filterIntensity;
           _aspectRatio = updated.aspectRatio;
           if (_activeFrame != null) {
             _activeFrame = _activeFrame!.copyWith(aspectRatio: updated.aspectRatio);
@@ -485,18 +642,37 @@ class _GenerateScreenState extends State<GenerateScreen> {
     );
   }
 
-  Future<void> _initializeDesign() async {
-    if (widget.initialDesign != null) {
-      final design = widget.initialDesign!;
+  Future<void> _loadDesignBackgroundImage(Uint8List bytes) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/temp_bg_${DateTime.now().millisecondsSinceEpoch}.png');
+      await tempFile.writeAsBytes(bytes);
+      if (mounted) {
+        setState(() {
+          _frameBgImage = XFile(tempFile.path);
+          _frameBgImageBytes = bytes;
+          _bgMode = 1;
+          _selectedImage = XFile(tempFile.path);
+          _selectedImages = [_selectedImage];
+          _syncPhotoSlots();
+        });
+      }
+    } catch (e) {
+      AppLogger.logError('DesignLoad', 'Failed to decode background image', e);
+    }
+  }
+
+  void _applyLoadedDesign(MemeDesign design) {
+    setState(() {
       _existingMemeId = design.id;
       _currentText = design.text;
       _textController.text = _currentText;
+      _frameCaptionController.text = _currentText;
       _currentAlignment = design.textAlign;
       _currentFontFamily = design.fontFamily;
       _currentFontSize = design.fontSize.clamp(14.0, 72.0);
       _currentFontWeight = design.fontWeight;
 
-      // Match or set text color
       final textColorIndex = AppColors.textColors.indexWhere(
         (c) => c.toARGB32() == design.textColor.toARGB32(),
       );
@@ -507,34 +683,114 @@ class _GenerateScreenState extends State<GenerateScreen> {
         _customTextColor = design.textColor;
       }
 
-      // Handle background image or color
-      if (design.backgroundImageBytes != null) {
-        try {
-          final tempDir = await getTemporaryDirectory();
-          final tempFile = File('${tempDir.path}/temp_bg_${DateTime.now().millisecondsSinceEpoch}.png');
-          await tempFile.writeAsBytes(design.backgroundImageBytes!);
-          if (mounted) {
-            setState(() {
-              _selectedImage = XFile(tempFile.path);
-            });
-          }
-        } catch (_) {
-          _selectedImage = null;
-        }
+      final bgColorIndex = AppColors.bgColors.indexWhere(
+        (c) => c.toARGB32() == design.backgroundColor.toARGB32(),
+      );
+      if (bgColorIndex != -1) {
+        _bgIndex = bgColorIndex;
+        _customBgColor = null;
       } else {
-        final bgColorIndex = AppColors.bgColors.indexWhere(
-          (c) => c.toARGB32() == design.backgroundColor.toARGB32(),
-        );
-        if (bgColorIndex != -1) {
-          _bgIndex = bgColorIndex;
-          _customBgColor = null;
-        } else {
-          _customBgColor = design.backgroundColor;
-        }
+        _customBgColor = design.backgroundColor;
       }
-      if (mounted) setState(() {});
+
+      FrameTemplate baseFrame = defaultCustomFrame;
+      if (design.frameId != null) {
+        final matches = predefined100Frames.where((f) => f.id == design.frameId);
+        if (matches.isNotEmpty) {
+          baseFrame = matches.first;
+        }
+      } else if (_activeFrame != null) {
+        baseFrame = _activeFrame!;
+      }
+
+      _activeFrame = baseFrame.copyWith(
+        name: baseFrame.id != defaultCustomFrame.id ? baseFrame.name : 'Edit Creation #${design.id}',
+        frameBgColor: design.backgroundColor,
+        caption: design.text,
+        captionColor: design.textColor,
+        captionFont: design.fontFamily,
+        captionSize: design.fontSize.clamp(14.0, 72.0),
+        aspectRatio: design.aspectRatio ?? baseFrame.aspectRatio,
+      );
+
+      _aspectRatio = design.aspectRatio ?? _activeFrame!.aspectRatio;
+      _bgMode = design.bgMode ?? 0;
+      _isTransparentBg = design.isTransparentBg ?? false;
+      _blurSigma = design.blurSigma ?? 0.0;
+      _hasFilmGrain = design.hasFilmGrain ?? true;
+      _grainOpacity = design.grainOpacity ?? 0.12;
+      _isInverted = design.isInverted ?? false;
+      _hasVignette = design.hasVignette ?? false;
+      _letterSpacing = design.letterSpacing ?? -0.5;
+      _currentTextCase = design.textCase ?? 'lowercase';
+      if (design.frameBgOpacity != null) {
+        _frameBgOpacity = design.frameBgOpacity!;
+      }
+      if (design.frameBgFit != null) {
+        _frameBgFit = BoxFit.values.firstWhere(
+          (fit) => fit.name == design.frameBgFit,
+          orElse: () => BoxFit.cover,
+        );
+      }
+
+      final effectiveTextColor = _customTextColor ?? AppColors.textColors[_textIndex];
+      // RESTORE TEXT LAYERS (EXACT USER OFFSETS & MULTIPLE LABELS)
+      if (design.textLayers != null && design.textLayers!.isNotEmpty) {
+        _textLayers = design.textLayers!;
+      } else {
+        final savedOffset = Offset(
+          design.textOffsetX ?? 0.5,
+          design.textOffsetY ?? 0.5,
+        );
+        _textLayers = [
+          TextLayerModel(
+            id: 'layer_1',
+            text: design.text,
+            fontFamily: design.fontFamily,
+            fontSize: design.fontSize.clamp(14.0, 72.0),
+            fontWeight: design.fontWeight,
+            textColor: effectiveTextColor,
+            textAlign: design.textAlign,
+            letterSpacing: _letterSpacing,
+            lineHeight: 1.05,
+            textCase: _currentTextCase,
+            blurSigma: _blurSigma,
+            offset: savedOffset,
+          ),
+        ];
+      }
+      _activeTextLayerId = _textLayers.first.id;
+
+      if (design.filterId.isNotEmpty && design.filterId != 'none') {
+        _activeFilterId = design.filterId;
+        _filterIntensity = design.filterIntensity;
+      } else {
+        _activeFilterId = 'none';
+        _filterIntensity = 1.0;
+      }
+      _studioEffects = _studioEffects.copyWith(
+        activeFilterId: _activeFilterId,
+        filterIntensity: _filterIntensity,
+        aspectRatio: _aspectRatio,
+        isInverted: _isInverted,
+        hasVignette: _hasVignette,
+        hasFilmGrain: _hasFilmGrain,
+        grainOpacity: _grainOpacity,
+        blurSigma: _blurSigma,
+      );
+    });
+
+    if (design.backgroundImageBytes != null) {
+      _loadDesignBackgroundImage(design.backgroundImageBytes!);
     } else {
-      _textController.text = _currentText;
+      setState(() {
+        _frameBgImage = null;
+        _frameBgImageBytes = null;
+        _bgMode = 0;
+        _selectedImage = null;
+        _selectedImages = [null];
+        _syncPhotoSlots();
+      });
     }
   }
 
@@ -584,6 +840,13 @@ class _GenerateScreenState extends State<GenerateScreen> {
       frameCaption: _frameCaptionController.text,
       textLayers: _textLayers.map((l) => l.copyWith()).toList(),
       activeTextLayerId: _activeTextLayerId,
+      frameBgImage: _frameBgImage,
+      frameBgFit: _frameBgFit,
+      frameBgOpacity: _frameBgOpacity,
+      frameBgBlur: _frameBgBlur,
+      bgMode: _bgMode,
+      activeFilterId: _activeFilterId,
+      filterIntensity: _filterIntensity,
     );
   }
 
@@ -617,7 +880,18 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _flipVertical = snap.flipVertical;
     _photoFit = snap.photoFit;
     _activeFrame = snap.activeFrame;
-    _studioEffects = _studioEffects.copyWith(aspectRatio: snap.aspectRatio);
+    _frameBgImage = snap.frameBgImage;
+    _frameBgFit = snap.frameBgFit;
+    _frameBgOpacity = snap.frameBgOpacity;
+    _frameBgBlur = snap.frameBgBlur;
+    _bgMode = snap.bgMode;
+    _activeFilterId = snap.activeFilterId;
+    _filterIntensity = snap.filterIntensity;
+    _studioEffects = _studioEffects.copyWith(
+      aspectRatio: snap.aspectRatio,
+      activeFilterId: snap.activeFilterId,
+      filterIntensity: snap.filterIntensity,
+    );
     _frameCaptionController.text = snap.frameCaption;
     if (snap.textLayers != null && snap.textLayers!.isNotEmpty) {
       _textLayers = snap.textLayers!.map((l) => l.copyWith()).toList();
@@ -648,6 +922,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
   void _resetToDefault() {
     HapticFeedback.mediumImpact();
     _recordHistory();
+    if (widget.initialDesign != null) {
+      _applyLoadedDesign(widget.initialDesign!);
+      return;
+    }
     setState(() {
       _activeFrame = predefined100Frames.first;
       _frameCaptionController.text = _activeFrame!.caption;
@@ -671,7 +949,15 @@ class _GenerateScreenState extends State<GenerateScreen> {
       _grainOpacity = 0.12;
       _isInverted = false;
       _hasVignette = false;
+      _activeFilterId = 'none';
+      _filterIntensity = 1.0;
       _selectedImage = null;
+      _frameBgImage = null;
+      _frameBgImageBytes = null;
+      _bgMode = 0;
+      _frameBgFit = BoxFit.cover;
+      _frameBgOpacity = 1.0;
+      _frameBgBlur = 0.0;
       _photoScale = 1.0;
       _photoOffset = Offset.zero;
       _photoRotation = 0;
@@ -1219,7 +1505,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
           actionsAlignment: MainAxisAlignment.center,
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
           actions: [
-            if (isPhotoExport)
+            if (isPhotoExport) ...[
               OutlinedButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
@@ -1243,23 +1529,69 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   ),
                 ),
               ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? AppColors.bratGreen : Colors.black,
-                foregroundColor: isDark ? Colors.black : Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 11),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: Text(
-                'Done',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? AppColors.bratGreen : Colors.black,
+                  foregroundColor: isDark ? Colors.black : Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text(
+                  'Done',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
                 ),
               ),
-            ),
+            ] else ...[
+              OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text(
+                  'Keep Editing',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  if (widget.isDedicatedEditScreen && Navigator.canPop(context)) {
+                    Navigator.pop(context, 'library');
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? AppColors.bratGreen : Colors.black,
+                  foregroundColor: isDark ? Colors.black : Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: Icon(
+                  Icons.collections_bookmark_rounded,
+                  size: 16,
+                  color: isDark ? Colors.black : Colors.white,
+                ),
+                label: Text(
+                  'View in Library',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
           ],
         );
       },
@@ -1342,11 +1674,57 @@ class _GenerateScreenState extends State<GenerateScreen> {
     );
   }
 
+  MemeDesign _buildCurrentMemeDesign({
+    required Uint8List pngBytes,
+    required Uint8List? bgImageBytes,
+    required String effectiveText,
+  }) {
+    final primaryOffset = _textLayers.isNotEmpty
+        ? _textLayers.first.offset
+        : const Offset(0.5, 0.5);
+
+    final textLayersJson = jsonEncode(_textLayers.map((l) => l.toJson()).toList());
+
+    return MemeDesign(
+      id: _existingMemeId,
+      backgroundColor: _activeFrame != null ? _activeFrame!.frameBgColor : _getEffectiveBgColor(),
+      backgroundImageBytes: bgImageBytes,
+      text: effectiveText,
+      textAlign: _currentAlignment,
+      fontFamily: _currentFontFamily,
+      fontSize: _currentFontSize,
+      fontWeight: _currentFontWeight,
+      textColor: _getEffectiveTextColor(),
+      imageBytes: pngBytes,
+      createdAt: DateTime.now().toIso8601String(),
+      filterId: _activeFilterId,
+      filterIntensity: _filterIntensity,
+      textLayersJson: textLayersJson,
+      textOffsetX: primaryOffset.dx,
+      textOffsetY: primaryOffset.dy,
+      frameId: _activeFrame?.id,
+      aspectRatio: _aspectRatio,
+      bgMode: _bgMode,
+      isTransparentBg: _isTransparentBg,
+      blurSigma: _blurSigma,
+      hasFilmGrain: _hasFilmGrain,
+      grainOpacity: _grainOpacity,
+      isInverted: _isInverted,
+      hasVignette: _hasVignette,
+      letterSpacing: _letterSpacing,
+      textCase: _currentTextCase,
+      frameBgOpacity: _frameBgOpacity,
+      frameBgFit: _frameBgFit.name,
+    );
+  }
+
   Future<void> _saveMemeToDatabase() async {
     HapticFeedback.lightImpact();
     setState(() => _isExporting = true);
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
+    bool isSuccess = false;
+    String? errorMessage;
     try {
       await ProcessScreen.run(
         context: context,
@@ -1355,64 +1733,88 @@ class _GenerateScreenState extends State<GenerateScreen> {
         featureName: 'SaveToLibrary',
         task: () async {
           final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-          if (boundary == null) return;
+          if (boundary == null) {
+            throw Exception('Could not access canvas rendering boundary');
+          }
           final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
           final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
           final pngBytes = byteData?.buffer.asUint8List();
-
-          Uint8List? bgImageBytes;
-          if (_selectedImage != null) {
-            bgImageBytes = await File(_selectedImage!.path).readAsBytes();
+          if (pngBytes == null || pngBytes.isEmpty) {
+            throw Exception('Encoded image bytes are empty');
           }
 
-          final meme = MemeDesign(
-            id: _existingMemeId,
-            backgroundColor: _activeFrame != null ? _activeFrame!.frameBgColor : _getEffectiveBgColor(),
-            backgroundImageBytes: bgImageBytes,
-            text: _activeFrame != null ? _activeFrame!.caption : _currentText,
-            textAlign: _currentAlignment,
-            fontFamily: _currentFontFamily,
-            fontSize: _currentFontSize,
-            fontWeight: _currentFontWeight,
-            textColor: _getEffectiveTextColor(),
-            imageBytes: pngBytes,
-            createdAt: DateTime.now().toIso8601String(),
+          Uint8List? bgImageBytes;
+          if (_bgMode == 1 && _frameBgImage != null) {
+            bgImageBytes = await File(_frameBgImage!.path).readAsBytes();
+          } else if (_bgMode == 1 && _frameBgImageBytes != null) {
+            bgImageBytes = _frameBgImageBytes;
+          } else if (_selectedImage != null) {
+            bgImageBytes = await File(_selectedImage!.path).readAsBytes();
+          } else if (_selectedImages.any((img) => img != null)) {
+            final firstImg = _selectedImages.firstWhere((img) => img != null);
+            bgImageBytes = await File(firstImg!.path).readAsBytes();
+          }
+
+          final effectiveText = _currentText.isNotEmpty
+              ? _currentText
+              : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : 'brat');
+
+          final meme = _buildCurrentMemeDesign(
+            pngBytes: pngBytes,
+            bgImageBytes: bgImageBytes,
+            effectiveText: effectiveText,
           );
 
           final db = DatabaseHelper();
-          if (_existingMemeId != null) {
-            await db.updateMemeDesign(meme);
+          if (_existingMemeId != null && _existingMemeId! > 0) {
+            final updateCount = await db.updateMemeDesign(meme);
+            if (updateCount <= 0) {
+              final newId = await db.insertMemeDesign(meme);
+              if (newId <= 0) {
+                throw Exception('Failed to insert design into database');
+              }
+              _existingMemeId = newId;
+            }
           } else {
-            _existingMemeId = await db.insertMemeDesign(meme);
+            final newId = await db.insertMemeDesign(meme);
+            if (newId <= 0) {
+              throw Exception('Failed to insert design into database');
+            }
+            _existingMemeId = newId;
           }
 
-          if (mounted) {
-            _showSaveSuccessDialog(
-              context,
-              title: 'Saved to Library!',
-              message: 'Your frame design has been stored. You can view, re-edit, or export it anytime from your Library.',
-              icon: Icons.bookmark_added_rounded,
-              isPhotoExport: false,
-            );
-          }
           AppLogger.logAction('Database', 'Saved meme to local SQLite DB', {
             'id': _existingMemeId,
             'hasFrame': _activeFrame != null,
             'hasImage': _selectedImage != null,
           });
+          isSuccess = true;
         },
       );
     } catch (e, st) {
       AppLogger.logError('Database', 'Failed to save meme design', e, st);
-      if (mounted) {
+      isSuccess = false;
+      errorMessage = e.toString();
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+
+    if (mounted) {
+      if (isSuccess) {
+        _showSaveSuccessDialog(
+          context,
+          title: 'Saved to Library!',
+          message: 'Your frame design has been stored. You can view, re-edit, or export it anytime from your Library.',
+          icon: Icons.bookmark_added_rounded,
+          isPhotoExport: false,
+        );
+      } else if (errorMessage != null) {
         _showSaveErrorDialog(
           context,
           title: 'Save Failed',
-          message: 'Could not save to library: $e',
+          message: 'Could not save to library: $errorMessage',
         );
       }
-    } finally {
-      if (mounted) setState(() => _isExporting = false);
     }
   }
 
@@ -1421,6 +1823,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
     setState(() => _isExporting = true);
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
+    bool isSuccess = false;
     try {
       await ProcessScreen.run(
         context: context,
@@ -1429,13 +1832,16 @@ class _GenerateScreenState extends State<GenerateScreen> {
         featureName: 'PhotoExport',
         task: () async {
           final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-          if (boundary == null) return;
+          if (boundary == null) {
+            throw Exception('Could not access canvas rendering boundary');
+          }
           final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
           final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-          if (byteData == null) return;
+          if (byteData == null) {
+            throw Exception('Encoded image bytes are null');
+          }
           final pngBytes = byteData.buffer.asUint8List();
 
-          bool isSuccess = false;
           try {
             await Gal.putImageBytes(
               pngBytes,
@@ -1443,6 +1849,43 @@ class _GenerateScreenState extends State<GenerateScreen> {
             );
             isSuccess = true;
             AppLogger.logInfo('Export', 'Gal saved photo successfully ✓');
+
+            // Auto-sync into local Library so it displays under saved creations
+            try {
+              Uint8List? bgImageBytes;
+              if (_bgMode == 1 && _frameBgImage != null) {
+                bgImageBytes = await File(_frameBgImage!.path).readAsBytes();
+              } else if (_bgMode == 1 && _frameBgImageBytes != null) {
+                bgImageBytes = _frameBgImageBytes;
+              } else if (_selectedImage != null) {
+                bgImageBytes = await File(_selectedImage!.path).readAsBytes();
+              } else if (_selectedImages.any((img) => img != null)) {
+                final firstImg = _selectedImages.firstWhere((img) => img != null);
+                bgImageBytes = await File(firstImg!.path).readAsBytes();
+              }
+
+              final effectiveText = _currentText.isNotEmpty
+                  ? _currentText
+                  : (_activeFrame?.caption.isNotEmpty == true ? _activeFrame!.caption : 'brat');
+
+              final meme = _buildCurrentMemeDesign(
+                pngBytes: pngBytes,
+                bgImageBytes: bgImageBytes,
+                effectiveText: effectiveText,
+              );
+
+              final db = DatabaseHelper();
+              if (_existingMemeId != null && _existingMemeId! > 0) {
+                final count = await db.updateMemeDesign(meme);
+                if (count <= 0) {
+                  _existingMemeId = await db.insertMemeDesign(meme);
+                }
+              } else {
+                _existingMemeId = await db.insertMemeDesign(meme);
+              }
+            } catch (autoSaveErr) {
+              AppLogger.logError('Export', 'Auto-save to library failed', autoSaveErr);
+            }
           } on GalException catch (e) {
             AppLogger.logError('Export', 'Gal exception: ${e.type}', e);
             isSuccess = false;
@@ -1450,28 +1893,28 @@ class _GenerateScreenState extends State<GenerateScreen> {
             AppLogger.logError('Export', 'Photo gallery save error', e, stack);
             isSuccess = false;
           }
-
-          if (mounted) {
-            if (isSuccess) {
-              _showSaveSuccessDialog(
-                context,
-                title: 'Saved to Photos!',
-                message: 'Your high-resolution frame has been successfully saved to your camera roll.',
-                icon: Icons.photo_library_rounded,
-                isPhotoExport: true,
-              );
-            } else {
-              _showSaveErrorDialog(
-                context,
-                title: 'Save Failed',
-                message: 'Could not save to Photos. Please ensure Photos permissions are granted in iOS Settings.',
-              );
-            }
-          }
         },
       );
     } finally {
       if (mounted) setState(() => _isExporting = false);
+    }
+
+    if (mounted) {
+      if (isSuccess) {
+        _showSaveSuccessDialog(
+          context,
+          title: 'Saved to Photos!',
+          message: 'Your high-resolution frame has been successfully saved to your camera roll.',
+          icon: Icons.photo_library_rounded,
+          isPhotoExport: true,
+        );
+      } else {
+        _showSaveErrorDialog(
+          context,
+          title: 'Save Failed',
+          message: 'Could not save to Photos. Please ensure Photos permissions are granted in iOS Settings.',
+        );
+      }
     }
   }
 
@@ -1594,6 +2037,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
                     }
                     _customBgColor = pickedColor;
                     _isTransparentBg = false;
+                    _bgMode = 0;
+                    _frameBgImage = null;
+                    _frameBgImageBytes = null;
                   } else {
                     if (_activeFrame != null) {
                       _activeFrame = _activeFrame!.copyWith(captionColor: pickedColor);
@@ -1818,6 +2264,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
                                                 frame: _activeFrame!,
                                                 imageFile: _selectedImage,
                                                 imageFiles: _selectedImages,
+                                                frameBgImage: _bgMode == 1 ? _frameBgImage : null,
+                                                frameBgImageBytes: _bgMode == 1 ? _frameBgImageBytes : null,
+                                                frameBgFit: _frameBgFit,
+                                                frameBgOpacity: _frameBgOpacity,
+                                                frameBgBlur: _frameBgBlur,
+                                                isExporting: _isExporting,
                                                 onPickImage: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
                                                 onPhotoTap: () => _showSlotPhotoOptionsSheet(_activePhotoSlot),
                                                 onPickSlotImage: (idx) => _showPhotoSourceDialog(slotIndex: idx),
@@ -1834,7 +2286,15 @@ class _GenerateScreenState extends State<GenerateScreen> {
                                                 flipVertical: _flipVertical,
                                                 photoFit: _photoFit,
                                                 showCaption: false,
-                                                studioEffects: _studioEffects,
+                                                studioEffects: _studioEffects.copyWith(
+                                                  activeFilterId: _activeFilterId,
+                                                  filterIntensity: _filterIntensity,
+                                                  isInverted: _isInverted,
+                                                  hasVignette: _hasVignette,
+                                                  hasFilmGrain: _hasFilmGrain,
+                                                  grainOpacity: _grainOpacity,
+                                                  blurSigma: _blurSigma,
+                                                ),
                                               )
                                             : _buildClassicCanvas(),
 
@@ -1864,7 +2324,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
                             // Floating Quick Photo Actions & Arrange Bar under Canvas
                             if (_selectedImage != null || _selectedImages.any((img) => img != null))
-                              _buildCanvasPhotoControlsBar(),
+                              _buildCanvasPhotoControlsBar()
+                            else if (_bgMode == 1 && (_frameBgImage != null || _frameBgImageBytes != null))
+                              _buildCanvasBgImageIndicator(),
 
                             const SizedBox(height: 12),
 
@@ -1914,7 +2376,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
   // Classic Canvas Renderer (When no Frame is active)
   // ---------------------------------------------------------------------------
   Widget _buildClassicCanvas() {
-    return AspectRatio(
+    Widget canvas = AspectRatio(
       aspectRatio: _aspectRatio,
       child: Container(
         decoration: BoxDecoration(
@@ -1933,6 +2395,17 @@ class _GenerateScreenState extends State<GenerateScreen> {
             fit: StackFit.expand,
             children: [
               Container(color: _getEffectiveBgColor()),
+
+              if (_bgMode == 1 && (_frameBgImage != null || _frameBgImageBytes != null))
+                Opacity(
+                  opacity: _frameBgOpacity.clamp(0.0, 1.0),
+                  child: _frameBgBlur > 0.05
+                      ? ImageFiltered(
+                          imageFilter: ui.ImageFilter.blur(sigmaX: _frameBgBlur, sigmaY: _frameBgBlur),
+                          child: _buildClassicBgImage(),
+                        )
+                      : _buildClassicBgImage(),
+                ),
 
               if (_selectedImage != null)
                 Opacity(
@@ -2010,6 +2483,100 @@ class _GenerateScreenState extends State<GenerateScreen> {
             ],
           ),
         ),
+      ),
+    );
+
+    if (_activeFilterId != 'none' && _filterIntensity > 0.01) {
+      final matrix = StudioFilterCatalog.getMatrix(_activeFilterId, intensity: _filterIntensity);
+      canvas = ColorFiltered(
+        colorFilter: ColorFilter.matrix(matrix),
+        child: canvas,
+      );
+    }
+
+    if (_isInverted && _activeFilterId != 'invert') {
+      canvas = ColorFiltered(
+        colorFilter: const ColorFilter.matrix([
+          -1, 0, 0, 0, 255,
+          0, -1, 0, 0, 255,
+          0, 0, -1, 0, 255,
+          0, 0, 0, 1, 0,
+        ]),
+        child: canvas,
+      );
+    }
+
+    return canvas;
+  }
+
+  Widget _buildClassicBgImage() {
+    if (_frameBgImage != null) {
+      return Image.file(
+        File(_frameBgImage!.path),
+        fit: _frameBgFit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    } else if (_frameBgImageBytes != null) {
+      return Image.memory(
+        _frameBgImageBytes!,
+        fit: _frameBgFit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildCanvasBgImageIndicator() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.black12),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.image, size: 14, color: AppColors.bratGreen),
+                const SizedBox(width: 5),
+                const Text('BG Photo Active', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedTab = 3);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text('Adjust', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black87)),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _clearFrameBackgroundImage,
+                  child: const Padding(
+                    padding: EdgeInsets.all(2.0),
+                    child: Icon(Icons.close, size: 14, color: Colors.redAccent),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3066,7 +3633,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'FRAME BACKGROUND COLOR',
+          'FRAME BACKGROUND',
           style: GoogleFonts.outfit(
             fontSize: 12,
             fontWeight: FontWeight.w800,
@@ -3075,73 +3642,175 @@ class _GenerateScreenState extends State<GenerateScreen> {
           ),
         ),
         const SizedBox(height: 10),
+
+        // Background Type Selector: Solid Color vs Background Image
         Row(
           children: [
-            // Rainbow Color Picker Button
-            GestureDetector(
-              onTap: () => _openColorPicker(context, isBg: true),
-              child: Container(
-                width: 34,
-                height: 34,
-                margin: const EdgeInsets.only(right: 10),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black26),
-                  gradient: const SweepGradient(
-                    colors: [Colors.red, Colors.yellow, Colors.green, Colors.cyan, Colors.blue, Colors.purple, Colors.red],
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  _recordHistory();
+                  HapticFeedback.selectionClick();
+                  setState(() => _bgMode = 0);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _bgMode == 0 ? Colors.black : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _bgMode == 0 ? Colors.black : Colors.black12,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.palette_outlined, size: 15, color: _bgMode == 0 ? AppColors.bratGreen : Colors.black87),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Solid Color',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: _bgMode == 0 ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: const Icon(Icons.colorize, size: 16, color: Colors.white),
               ),
             ),
-
-            // Color Dots
+            const SizedBox(width: 10),
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  children: colorsList.map((color) {
-                    final isSelected = currentBg.toARGB32() == color.toARGB32();
-                    return GestureDetector(
-                      onTap: () {
-                        _recordHistory();
-                        HapticFeedback.selectionClick();
-                        setState(() {
-                          _customBgColor = color;
-                          _isTransparentBg = false;
-                          if (_activeFrame != null) {
-                            _activeFrame = _activeFrame!.copyWith(frameBgColor: color);
-                          }
-                        });
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected ? Colors.black : Colors.black12,
-                            width: isSelected ? 3 : 1,
+              child: GestureDetector(
+                onTap: () {
+                  _recordHistory();
+                  HapticFeedback.selectionClick();
+                  setState(() => _bgMode = 1);
+                  if (_frameBgImage == null && _frameBgImageBytes == null) {
+                    _showBgImageSourceSheet(context);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _bgMode == 1 ? Colors.black : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _bgMode == 1 ? Colors.black : Colors.black12,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.image_outlined, size: 15, color: _bgMode == 1 ? AppColors.bratGreen : Colors.black87),
+                      const SizedBox(width: 6),
+                      Text(
+                        'BG Image',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: _bgMode == 1 ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      if (_frameBgImage != null || _frameBgImageBytes != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: AppColors.bratGreen,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                        child: isSelected
-                            ? Icon(
-                                Icons.check,
-                                size: 16,
-                                color: color == Colors.white ? Colors.black : Colors.white,
-                              )
-                            : null,
-                      ),
-                    );
-                  }).toList(),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
+        const SizedBox(height: 14),
+
+        if (_bgMode == 0) ...[
+          // SOLID COLOR MODE
+          Row(
+            children: [
+              // Rainbow Color Picker Button
+              GestureDetector(
+                onTap: () => _openColorPicker(context, isBg: true),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black26),
+                    gradient: const SweepGradient(
+                      colors: [Colors.red, Colors.yellow, Colors.green, Colors.cyan, Colors.blue, Colors.purple, Colors.red],
+                    ),
+                  ),
+                  child: const Icon(Icons.colorize, size: 16, color: Colors.white),
+                ),
+              ),
+
+              // Color Dots
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: colorsList.map((color) {
+                      final isSelected = currentBg.toARGB32() == color.toARGB32() && _frameBgImage == null;
+                      return GestureDetector(
+                        onTap: () {
+                          _recordHistory();
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _customBgColor = color;
+                            _isTransparentBg = false;
+                            _bgMode = 0;
+                            _frameBgImage = null;
+                            _frameBgImageBytes = null;
+                            if (_activeFrame != null) {
+                              _activeFrame = _activeFrame!.copyWith(frameBgColor: color);
+                            }
+                          });
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? Colors.black : Colors.black12,
+                              width: isSelected ? 3 : 1,
+                            ),
+                          ),
+                          child: isSelected
+                              ? Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: color == Colors.white ? Colors.black : Colors.white,
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          // BACKGROUND IMAGE MODE
+          _buildBgImageSubpanel(context),
+        ],
         const SizedBox(height: 16),
         const Divider(height: 1, color: Colors.black12),
         const SizedBox(height: 14),
@@ -3155,7 +3824,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
             color: Colors.black54,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
+
+        _buildStudioFiltersSubpanel(),
+        const SizedBox(height: 12),
+        const Divider(height: 1, color: Colors.black12),
+        const SizedBox(height: 12),
 
         // Film Grain Slider
         Row(
@@ -3253,6 +3927,543 @@ class _GenerateScreenState extends State<GenerateScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildStudioFiltersSubpanel() {
+    final currentFilter = StudioFilterCatalog.getFilter(_activeFilterId);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Visual Filters',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _activeFilterId != 'none' ? Colors.black : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _activeFilterId != 'none' ? currentFilter.name : 'Original',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: _activeFilterId != 'none' ? AppColors.bratGreen : Colors.black54,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_activeFilterId != 'none')
+              GestureDetector(
+                onTap: () {
+                  _recordHistory();
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _activeFilterId = 'none';
+                    _filterIntensity = 1.0;
+                    _studioEffects = _studioEffects.copyWith(
+                      activeFilterId: 'none',
+                      filterIntensity: 1.0,
+                    );
+                  });
+                },
+                child: const Text(
+                  'Reset Filter',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Horizontal Scrollable Filter Cards
+        SizedBox(
+          height: 74,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: StudioFilterCatalog.filters.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final filter = StudioFilterCatalog.filters[index];
+              final isSelected = _activeFilterId == filter.id;
+              return GestureDetector(
+                onTap: () {
+                  _recordHistory();
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _activeFilterId = filter.id;
+                    _studioEffects = _studioEffects.copyWith(
+                      activeFilterId: filter.id,
+                      filterIntensity: _filterIntensity,
+                    );
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 72,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.black : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? AppColors.bratGreen : Colors.black12,
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Color Preview Dot / Gradient
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: filter.previewColors,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: isSelected ? Colors.white : Colors.black12,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: isSelected && filter.id != 'none'
+                            ? const Icon(Icons.check, size: 14, color: Colors.white)
+                            : null,
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        filter.name.replaceAll(RegExp(r'^[^\w\s]+\s*'), ''),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // Intensity Slider (visible when active filter is not 'none')
+        if (_activeFilterId != 'none') ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const SizedBox(
+                width: 75,
+                child: Text(
+                  'Filter Level',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  value: _filterIntensity.clamp(0.0, 1.0),
+                  min: 0.0,
+                  max: 1.0,
+                  activeColor: Colors.black,
+                  inactiveColor: Colors.black12,
+                  onChangeStart: (_) => _recordHistory(),
+                  onChanged: (v) => setState(() {
+                    _filterIntensity = v;
+                    _studioEffects = _studioEffects.copyWith(filterIntensity: v);
+                  }),
+                ),
+              ),
+              Text(
+                '${(_filterIntensity * 100).toInt()}%',
+                style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildBgImageSubpanel(BuildContext context) {
+    final hasImage = _frameBgImage != null || _frameBgImageBytes != null;
+    if (!hasImage) {
+      return GestureDetector(
+        onTap: () => _showBgImageSourceSheet(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black12, width: 1.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  color: AppColors.bratGreen,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add_photo_alternate_outlined, color: Colors.black, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Choose Background Photo',
+                    style: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    'Select from Photo Library or Camera',
+                    style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Image preview card with Change & Remove
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black12),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  color: Colors.black12,
+                  child: _frameBgImage != null
+                      ? Image.file(
+                          File(_frameBgImage!.path),
+                          fit: BoxFit.cover,
+                        )
+                      : Image.memory(
+                          _frameBgImageBytes!,
+                          fit: BoxFit.cover,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Custom Background Active',
+                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Replaces solid background color',
+                      style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Change Photo',
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: () => _showBgImageSourceSheet(context),
+              ),
+              IconButton(
+                tooltip: 'Remove Photo',
+                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
+                onPressed: _clearFrameBackgroundImage,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Fit Selector
+        Row(
+          children: [
+            const SizedBox(
+              width: 75,
+              child: Text('Image Fit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            _buildFitChip('Cover', BoxFit.cover),
+            const SizedBox(width: 6),
+            _buildFitChip('Contain', BoxFit.contain),
+            const SizedBox(width: 6),
+            _buildFitChip('Fill', BoxFit.fill),
+          ],
+        ),
+        const SizedBox(height: 6),
+
+        // Opacity Slider
+        Row(
+          children: [
+            const SizedBox(
+              width: 75,
+              child: Text('BG Opacity', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            Expanded(
+              child: Slider(
+                value: _frameBgOpacity.clamp(0.15, 1.0),
+                min: 0.15,
+                max: 1.0,
+                activeColor: Colors.black,
+                inactiveColor: Colors.black12,
+                onChangeStart: (_) => _recordHistory(),
+                onChanged: (v) => setState(() => _frameBgOpacity = v),
+              ),
+            ),
+            Text('${(_frameBgOpacity * 100).toInt()}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+
+        // Blur Slider
+        Row(
+          children: [
+            const SizedBox(
+              width: 75,
+              child: Text('BG Blur', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            Expanded(
+              child: Slider(
+                value: _frameBgBlur.clamp(0.0, 10.0),
+                min: 0.0,
+                max: 10.0,
+                activeColor: Colors.black,
+                inactiveColor: Colors.black12,
+                onChangeStart: (_) => _recordHistory(),
+                onChanged: (v) => setState(() => _frameBgBlur = v),
+              ),
+            ),
+            Text('${_frameBgBlur.toInt()}px', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFitChip(String label, BoxFit fit) {
+    final isSelected = _frameBgFit == fit;
+    return GestureDetector(
+      onTap: () {
+        _recordHistory();
+        HapticFeedback.selectionClick();
+        setState(() => _frameBgFit = fit);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.black : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? Colors.black : Colors.black26),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? AppColors.bratGreen : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBgImageSourceSheet(BuildContext context) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Background Photo',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Set a custom photo or wallpaper as your frame background',
+                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPickerActionCard(
+                      icon: Icons.photo_library_outlined,
+                      label: 'Photo Library',
+                      color: AppColors.bratGreen,
+                      textColor: Colors.black87,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _pickFrameBackgroundImage(ImageSource.gallery);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildPickerActionCard(
+                      icon: Icons.camera_alt_outlined,
+                      label: 'Camera',
+                      color: Colors.black,
+                      textColor: Colors.white,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _pickFrameBackgroundImage(ImageSource.camera);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerActionCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color textColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color == AppColors.bratGreen
+                  ? AppColors.bratGreen.withValues(alpha: 0.3)
+                  : Colors.black12,
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 28, color: textColor),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFrameBackgroundImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 95,
+      );
+      if (picked != null) {
+        _recordHistory();
+        HapticFeedback.mediumImpact();
+        final bytes = await File(picked.path).readAsBytes();
+        setState(() {
+          _frameBgImage = picked;
+          _frameBgImageBytes = bytes;
+          _bgMode = 1;
+        });
+      }
+    } catch (e) {
+      AppLogger.logError('FrameBgImage', 'Failed to pick background image', e);
+    }
+  }
+
+  void _clearFrameBackgroundImage() {
+    _recordHistory();
+    HapticFeedback.lightImpact();
+    setState(() {
+      _frameBgImage = null;
+      _frameBgImageBytes = null;
+      _bgMode = 0;
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -3672,6 +4883,13 @@ class EditorSnapshot {
   final String frameCaption;
   final List<TextLayerModel>? textLayers;
   final String? activeTextLayerId;
+  final XFile? frameBgImage;
+  final BoxFit frameBgFit;
+  final double frameBgOpacity;
+  final double frameBgBlur;
+  final int bgMode;
+  final String activeFilterId;
+  final double filterIntensity;
 
   EditorSnapshot({
     required this.text,
@@ -3705,6 +4923,13 @@ class EditorSnapshot {
     required this.frameCaption,
     this.textLayers,
     this.activeTextLayerId,
+    this.frameBgImage,
+    this.frameBgFit = BoxFit.cover,
+    this.frameBgOpacity = 1.0,
+    this.frameBgBlur = 0.0,
+    this.bgMode = 0,
+    this.activeFilterId = 'none',
+    this.filterIntensity = 1.0,
   });
 }
 

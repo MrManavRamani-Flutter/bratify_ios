@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../constants/app_colors.dart';
 import '../../services/logger_service.dart';
 import 'studio_effects_model.dart';
+import '../../models/studio_filter_model.dart';
 
 /// Interactive modal sheet giving users 100x creative freedom:
 /// blur, neon glow, deluxe subtext, viral aesthetic palettes, badges, and ratios.
@@ -195,6 +196,142 @@ class _StudioEffectsSheetState extends State<StudioEffectsSheet> with SingleTick
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       children: [
+        // 0. Visual Filter Selector (12+ Styles)
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xff22222A),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.auto_awesome_rounded, color: AppColors.bratGreen, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Visual Filters (12+ Styles)',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_effects.activeFilterId != 'none')
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _update(_effects.copyWith(activeFilterId: 'none', filterIntensity: 1.0));
+                      },
+                      child: const Text(
+                        'Reset',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 70,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: StudioFilterCatalog.filters.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final filter = StudioFilterCatalog.filters[index];
+                    final isSelected = _effects.activeFilterId == filter.id;
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _update(_effects.copyWith(activeFilterId: filter.id));
+                      },
+                      child: Container(
+                        width: 72,
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.black : const Color(0xff2A2A34),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? AppColors.bratGreen : Colors.white12,
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: filter.previewColors,
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: isSelected && filter.id != 'none'
+                                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              filter.name.replaceAll(RegExp(r'^[^\w\s]+\s*'), ''),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                                color: isSelected ? AppColors.bratGreen : Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (_effects.activeFilterId != 'none') ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Intensity', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    Expanded(
+                      child: Slider(
+                        value: _effects.filterIntensity.clamp(0.0, 1.0),
+                        min: 0.0,
+                        max: 1.0,
+                        activeColor: AppColors.bratGreen,
+                        inactiveColor: Colors.white12,
+                        onChanged: (v) => _update(_effects.copyWith(filterIntensity: v)),
+                      ),
+                    ),
+                    Text(
+                      '${(_effects.filterIntensity * 100).toInt()}%',
+                      style: const TextStyle(color: AppColors.bratGreen, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
         // 1. Text Blur Slider (Signature Brat Album Low-Res Aesthetic)
         _buildSliderCard(
           title: 'Album Low-Res Blur',

@@ -21,26 +21,44 @@ class ProcessScreen extends StatefulWidget {
     this.progress,
   });
 
+  static BuildContext? _activeDialogContext;
+  static bool _isShowing = false;
+
   /// Shows the Process Screen as a non-blocking graceful overlay
   static void show(
     BuildContext context, {
     String title = 'Processing Your Post...',
     String subtitle = 'Optimizing layout and styling details',
   }) {
+    if (_isShowing) return;
+    _isShowing = true;
     AppLogger.logAction('ProcessScreen', 'Showing process overlay', {'title': title});
     showDialog(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: 0.75),
-      builder: (_) => ProcessScreen(title: title, subtitle: subtitle),
-    );
+      useRootNavigator: true,
+      builder: (ctx) {
+        _activeDialogContext = ctx;
+        return ProcessScreen(title: title, subtitle: subtitle);
+      },
+    ).then((_) {
+      _isShowing = false;
+      _activeDialogContext = null;
+    });
   }
 
   /// Closes the active process overlay safely
   static void hide(BuildContext context) {
     AppLogger.logInfo('ProcessScreen', 'Hiding process overlay');
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
+    if (!_isShowing) return;
+    _isShowing = false;
+    final ctx = _activeDialogContext;
+    _activeDialogContext = null;
+    if (ctx != null && ctx.mounted) {
+      Navigator.of(ctx, rootNavigator: true).pop();
+    } else if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
   }
 
@@ -55,24 +73,31 @@ class ProcessScreen extends StatefulWidget {
     String featureName = 'StudioTask',
   }) async {
     show(context, title: title, subtitle: subtitle);
+    await Future.delayed(const Duration(milliseconds: 50));
 
     try {
       final result = await task();
-      if (context.mounted) hide(context);
+      if (context.mounted) {
+        hide(context);
+        await Future.delayed(const Duration(milliseconds: 80));
+      }
       return result;
     } catch (e, st) {
       AppLogger.logError(featureName, 'Process task encountered issue', e, st);
       if (context.mounted) {
         hide(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MaintenanceScreen(
-              featureName: featureName,
-              errorDetails: e.toString(),
+        await Future.delayed(const Duration(milliseconds: 80));
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MaintenanceScreen(
+                featureName: featureName,
+                errorDetails: e.toString(),
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
       return null;
     }

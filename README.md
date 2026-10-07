@@ -70,24 +70,27 @@ brat_generator/
 │   ├── features/
 │   │   ├── frames/          # Frame pre-flight guidance sheet & requirements checklist
 │   │   ├── photo_transform/ # PhotoTransformState & per-slot transform logic
-│   │   └── quotes/          # 120+ viral quotes model & category repository
-│   ├── models/              # Frame template & meme design data models (FramePhotoLayout)
+│   │   └── studio_effects/  # Film grain, blur, and vintage vignette controls
+│   ├── models/              # Frame template, text layer & meme design data models
 │   ├── screens/
 │   │   ├── generate_screen.dart    # Dedicated studio canvas, slot controls & editor
+│   │   ├── home_screen.dart        # Clean Studio Hub & DIY frame layout starters
 │   │   ├── image_crop_screen.dart  # Dedicated full-screen image crop & adjust studio
-│   │   ├── main_screen.dart        # Root bottom navigation controller (Templates Home)
+│   │   ├── main_screen.dart        # Root bottom navigation controller
+│   │   ├── maintenance_screen.dart # Graceful error boundary fallback screen
 │   │   ├── onboarding_screen.dart  # Lightweight vector custom-painted introduction
-│   │   ├── quotes_screen.dart      # 10-category viral quotes browser & direct canvas applier
+│   │   ├── process_screen.dart     # Modern export & processing overlay modal
 │   │   ├── save_screen.dart        # Real-time reactive drafts library with iPad-safe share
 │   │   ├── splash_screen.dart      # iOS-style startup sequence with diagnostic log
-│   │   ├── templates_screen.dart   # Dedicated 500+ searchable frames gallery
 │   │   └── settings/               # FAQs, in-app privacy policy modal & rating deep-link
 │   ├── services/
 │   │   ├── app_update_service.dart # Store version check using Universal HTTPS links
 │   │   ├── database_service.dart   # SQLite database operations with change notifier
 │   │   └── logger_service.dart     # Diagnostic logging & error boundary
 │   ├── widgets/
-│   │   └── frame_canvas_widget.dart# Multi-photo slot layout renderer (1–4 photos)
+│   │   ├── frame_canvas_widget.dart# Multi-photo slot layout renderer (1–4 photos)
+│   │   ├── interactive_text_overlay.dart # Draggable, resizable canvas text layers
+│   │   └── text_layers_manager_widget.dart # Text layers bottom sheet manager
 │   └── my_app.dart                 # MaterialApp root, theme, and system overlays
 ├── ios/
 │   ├── Runner/

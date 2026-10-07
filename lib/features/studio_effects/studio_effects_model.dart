@@ -29,6 +29,10 @@ class StudioEffectsModel {
   final bool hasVignette;
   final bool isInverted;
 
+  // Aesthetic Visual Filter Suite
+  final String activeFilterId;
+  final double filterIntensity; // 0.0 to 1.0
+
   // Canvas Framing
   final double aspectRatio;
   final String ratioName;
@@ -51,6 +55,8 @@ class StudioEffectsModel {
     this.grainOpacity = 0.12,
     this.hasVignette = false,
     this.isInverted = false,
+    this.activeFilterId = 'none',
+    this.filterIntensity = 1.0,
     this.aspectRatio = 1.0,
     this.ratioName = '1:1 Square',
   });
@@ -73,6 +79,8 @@ class StudioEffectsModel {
     double? grainOpacity,
     bool? hasVignette,
     bool? isInverted,
+    String? activeFilterId,
+    double? filterIntensity,
     double? aspectRatio,
     String? ratioName,
   }) {
@@ -94,6 +102,8 @@ class StudioEffectsModel {
       grainOpacity: grainOpacity ?? this.grainOpacity,
       hasVignette: hasVignette ?? this.hasVignette,
       isInverted: isInverted ?? this.isInverted,
+      activeFilterId: activeFilterId ?? this.activeFilterId,
+      filterIntensity: filterIntensity ?? this.filterIntensity,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       ratioName: ratioName ?? this.ratioName,
     );
