@@ -31,14 +31,11 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Bratify requires permission to save your created memes directly to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Bratify requires access to your photo library to select and customize background images for your memes.</string>
-	<key>NSBonjourServices</key>
+	<string>Bratify requires access to your photo library to select photos for your frames, collages, and customizable backgrounds.</string>
+	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string>_dartobservatory._tcp</string>
-		<string>_dartVmService._tcp</string>
+		<string>https</string>
 	</array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Flutter tools use the local network to discover debug-enabled apps and connect the debugger.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
