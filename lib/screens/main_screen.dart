@@ -15,14 +15,15 @@ import 'save_screen.dart';
 import 'settings/settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int initialIndex;
+  const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   MainScreenState createState() => MainScreenState();
 }
 
 class MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
   List<MemeDesign> savedMemes = [];
 
   static const _overlayStyle = SystemUiOverlayStyle(
@@ -36,6 +37,7 @@ class MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     SystemChrome.setSystemUIOverlayStyle(_overlayStyle);
     loadSavedMemes();
     appProcess();
@@ -171,11 +173,11 @@ class MainScreenState extends State<MainScreen> {
           alignment: Alignment.center,
           heightFactor: 1.0,
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isTab ? 600 : double.infinity),
+            constraints: BoxConstraints(maxWidth: isTab ? 660 : double.infinity),
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: isTab ? 24 : 12,
-                vertical: 6,
+                horizontal: isTab ? 28 : 12,
+                vertical: isTab ? 8 : 6,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -190,14 +192,14 @@ class MainScreenState extends State<MainScreen> {
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
                         padding: EdgeInsets.symmetric(
-                          vertical: isTab ? 10 : 7,
-                          horizontal: 4,
+                          vertical: isTab ? 11 : 7,
+                          horizontal: isTab ? 6 : 4,
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? AppColors.bratGreen.withValues(alpha: 0.22)
                               : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(isTab ? 16 : 14),
                           border: isSelected
                               ? Border.all(
                                   color: AppColors.bratGreen,
@@ -211,7 +213,7 @@ class MainScreenState extends State<MainScreen> {
                             if (tab.assetSvg != null)
                               AppSvgIcon(
                                 assetPath: tab.assetSvg!,
-                                size: isTab ? 24 : 20,
+                                size: isTab ? 26 : 20,
                                 color: isSelected
                                     ? AppColors.textBlackColor
                                     : Colors.black45,
@@ -219,7 +221,7 @@ class MainScreenState extends State<MainScreen> {
                             else
                               Icon(
                                 tab.icon,
-                                size: isTab ? 24 : 20,
+                                size: isTab ? 26 : 20,
                                 color: isSelected
                                     ? AppColors.textBlackColor
                                     : Colors.black45,
@@ -230,14 +232,13 @@ class MainScreenState extends State<MainScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.outfit(
-                                fontSize: isTab ? 13 : 11,
+                                fontSize: isTab ? 14 : 11,
                                 fontWeight: isSelected
                                     ? FontWeight.w800
                                     : FontWeight.w500,
                                 color: isSelected
                                     ? AppColors.textBlackColor
-                                    : Colors.black54,
-                                letterSpacing: -0.2,
+                                    : Colors.black45,
                               ),
                             ),
                           ],

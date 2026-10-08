@@ -56,9 +56,10 @@ class _SaveScreenState extends State<SaveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    var crossAxisCount = ipad ? 3 : 2;
-    var crossAxisSpacing = ipad ? 20.0 : 10.0;
-    var mainAxisSpacing = ipad ? 20.0 : 10.0;
+    final isTab = context.isTablet;
+    final crossAxisCount = isTab ? 3 : 2;
+    final crossAxisSpacing = isTab ? 20.0 : 10.0;
+    final mainAxisSpacing = isTab ? 20.0 : 10.0;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -82,7 +83,7 @@ class _SaveScreenState extends State<SaveScreen> {
               ),
               // Main Content
               Padding(
-                padding: EdgeInsets.only(top: ipad ? 80 : 55),
+                padding: EdgeInsets.only(top: isTab ? 85 : 55),
                 child: _isLoading && savedMemes.isEmpty
                     ? const Center(
                         child: CircularProgressIndicator(
@@ -111,24 +112,24 @@ class _SaveScreenState extends State<SaveScreen> {
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Container(
-                                            width: 72,
-                                            height: 72,
+                                            width: isTab ? 90 : 72,
+                                            height: isTab ? 90 : 72,
                                             decoration: BoxDecoration(
                                               color: AppColors.bratGreen.withValues(alpha: 0.2),
                                               shape: BoxShape.circle,
                                             ),
                                             alignment: Alignment.center,
-                                            child: const Icon(
+                                            child: Icon(
                                               Icons.bookmark_border_rounded,
-                                              size: 38,
+                                              size: isTab ? 48 : 38,
                                               color: Colors.black87,
                                             ),
                                           ),
-                                          const SizedBox(height: 16),
-                                          const Text(
+                                          SizedBox(height: isTab ? 22 : 16),
+                                          Text(
                                             "Your Library is Empty",
                                             style: TextStyle(
-                                              fontSize: 18,
+                                              fontSize: isTab ? 22 : 18,
                                               fontWeight: FontWeight.w800,
                                               color: Colors.black87,
                                               letterSpacing: -0.4,
@@ -139,7 +140,7 @@ class _SaveScreenState extends State<SaveScreen> {
                                           Text(
                                             "Create iconic brat memes and presets in Studio, then tap Save to build your collection.",
                                             style: TextStyle(
-                                              fontSize: 13,
+                                              fontSize: isTab ? 15 : 13,
                                               height: 1.4,
                                               color: Colors.grey.shade600,
                                             ),
@@ -162,16 +163,16 @@ class _SaveScreenState extends State<SaveScreen> {
                                 parent: BouncingScrollPhysics(),
                               ),
                               padding: EdgeInsets.symmetric(
-                                horizontal: ipad ? 20 : 10,
-                                vertical: ipad ? 15 : 5,
+                                horizontal: isTab ? 24 : 10,
+                                vertical: isTab ? 18 : 5,
                               ),
                               crossAxisCount: crossAxisCount,
-                              mainAxisSpacing: mainAxisSpacing - (ipad ? 10 : 0),
-                              crossAxisSpacing: crossAxisSpacing - (ipad ? 5 : 10),
+                              mainAxisSpacing: mainAxisSpacing,
+                              crossAxisSpacing: crossAxisSpacing,
                               itemCount: savedMemes.length,
                               itemBuilder: (context, index) {
                                 final memeItem = savedMemes[index];
-                                return _buildGridItem(context, memeItem);
+                                return _buildGridItem(context, memeItem, isTab);
                               },
                             ),
                           ),
@@ -183,22 +184,18 @@ class _SaveScreenState extends State<SaveScreen> {
     );
   }
 
-  Widget _buildGridItem(BuildContext context, MemeDesign memeDesign) {
-    // height : 185 Total
+  Widget _buildGridItem(BuildContext context, MemeDesign memeDesign, bool isTab) {
     return Padding(
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(isTab ? 10 : 8),
       child: Container(
-        padding: EdgeInsets.symmetric(
-          vertical: ipad ? 10 : 5,
-          horizontal: ipad ? 10 : 5,
-        ),
+        padding: EdgeInsets.all(isTab ? 12 : 6),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(isTab ? 20 : 15),
           boxShadow: const [
             BoxShadow(
               color: Colors.black12,
-              blurRadius: 4,
+              blurRadius: 6,
               offset: Offset(0, 2),
             ),
           ],
@@ -209,39 +206,39 @@ class _SaveScreenState extends State<SaveScreen> {
             GestureDetector(
               onTap: () => widget.onEditSelected(memeDesign),
               child: SizedBox(
-                height: ipad ? 200 : 120, // Adjust height as needed
+                height: isTab ? 230 : 120,
                 width: double.infinity,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(isTab ? 14 : 10),
                   child: (memeDesign.imageBytes != null && memeDesign.imageBytes!.isNotEmpty)
                       ? Image.memory(
                           memeDesign.imageBytes!,
                           fit: BoxFit.cover,
                           width: double.infinity,
                           errorBuilder: (context, error, stackTrace) =>
-                              _buildFallbackPreview(memeDesign),
+                              _buildFallbackPreview(memeDesign, isTab),
                         )
-                      : _buildFallbackPreview(memeDesign),
+                      : _buildFallbackPreview(memeDesign, isTab),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: isTab ? 14 : 10),
             // iOS Glass Action Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IosGlassIconButton(
                   svgPath: 'assets/svg/edit.svg',
-                  size: ipad ? 50 : 38,
-                  iconSize: ipad ? 24 : 18,
+                  size: isTab ? 50 : 38,
+                  iconSize: isTab ? 24 : 18,
                   onTap: () {
                     widget.onEditSelected(memeDesign);
                   },
                 ),
                 IosGlassIconButton(
                   svgPath: 'assets/svg/delete.svg',
-                  size: ipad ? 50 : 38,
-                  iconSize: ipad ? 24 : 18,
+                  size: isTab ? 50 : 38,
+                  iconSize: isTab ? 24 : 18,
                   iconColor: Colors.redAccent,
                   onTap: () {
                     _showDeleteDialog(context, memeDesign);
@@ -250,8 +247,8 @@ class _SaveScreenState extends State<SaveScreen> {
                 Builder(
                   builder: (btnContext) => IosGlassIconButton(
                     svgPath: 'assets/svg/share.svg',
-                    size: ipad ? 50 : 38,
-                    iconSize: ipad ? 24 : 18,
+                    size: isTab ? 50 : 38,
+                    iconSize: isTab ? 24 : 18,
                     onTap: () {
                       _shareMemeImage(btnContext, memeDesign);
                     },
@@ -259,19 +256,19 @@ class _SaveScreenState extends State<SaveScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: isTab ? 8 : 6),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFallbackPreview(MemeDesign meme) {
+  Widget _buildFallbackPreview(MemeDesign meme, [bool isTab = false]) {
     return Container(
       width: double.infinity,
       color: meme.backgroundColor,
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(isTab ? 12.0 : 8.0),
       child: Text(
         meme.text,
         textAlign: meme.textAlign,
@@ -279,7 +276,7 @@ class _SaveScreenState extends State<SaveScreen> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: meme.textColor,
-          fontSize: 16,
+          fontSize: isTab ? 20 : 16,
           fontWeight: FontWeight.bold,
           fontFamily: meme.fontFamily,
         ),

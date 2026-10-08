@@ -166,14 +166,18 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
+    final nextScreen =
+        seenOnboarding ? const MainScreen() : const OnboardingScreen();
+
+    if (!mounted) return;
     HapticFeedback.lightImpact();
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (_, animation, __) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: seenOnboarding ? const MainScreen() : const OnboardingScreen(),
+          child: nextScreen,
         ),
       ),
     );

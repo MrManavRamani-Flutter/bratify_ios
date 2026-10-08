@@ -1,8 +1,7 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-
 import '../models/meme_design_model.dart';
 import 'logger_service.dart';
 
@@ -203,6 +202,7 @@ class DatabaseHelper {
           AppLogger.logError('DATABASE', 'Failed to parse single meme row: ${map['id']}', itemError, st);
         }
       }
+
       return results;
     } catch (e, stack) {
       AppLogger.logError(

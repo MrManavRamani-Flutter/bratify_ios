@@ -7,3 +7,4 @@ class AppConfig {
   static const String appShareUrl =
       "https://apps.apple.com/us/app/bratify-meme-text-maker/id6819142976";
 }
+

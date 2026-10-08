@@ -38,6 +38,7 @@ class GenerateScreen extends StatefulWidget {
   final FrameTemplate? initialFrame;
   final String? initialText;
   final XFile? initialImage;
+  final List<XFile?>? initialImages;
   final bool isDedicatedEditScreen;
   final VoidCallback? onBackToHome;
 
@@ -48,6 +49,7 @@ class GenerateScreen extends StatefulWidget {
     this.initialFrame,
     this.initialText,
     this.initialImage,
+    this.initialImages,
     this.isDedicatedEditScreen = false,
     this.onBackToHome,
   });
@@ -504,7 +506,13 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _frameCaptionController.text = _currentText;
     _textController.text = _currentText;
 
-    if (widget.initialImage != null) {
+    if (widget.initialImages != null && widget.initialImages!.isNotEmpty) {
+      _selectedImages = List.from(widget.initialImages!);
+      if (_selectedImages.isNotEmpty && _selectedImages[0] != null) {
+        _selectedImage = _selectedImages[0];
+      }
+      _syncPhotoSlots();
+    } else if (widget.initialImage != null) {
       _selectedImage = widget.initialImage;
       _syncPhotoSlots();
     } else {
@@ -2240,8 +2248,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
   Widget _buildEditScreenAppBar(BuildContext context, bool isTab) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isTab ? 20 : 12,
-        vertical: 8,
+        horizontal: isTab ? 24 : 12,
+        vertical: isTab ? 10 : 8,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -2265,21 +2273,21 @@ class _GenerateScreenState extends State<GenerateScreen> {
               }
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: isTab ? 14 : 10, vertical: isTab ? 8 : 6),
               decoration: BoxDecoration(
                 color: const Color(0xffF2F2F7),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(isTab ? 12 : 10),
                 border: Border.all(color: Colors.black12),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: Colors.black87),
-                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_back_ios_new_rounded, size: isTab ? 16 : 14, color: Colors.black87),
+                  SizedBox(width: isTab ? 6 : 4),
                   Text(
                     'Studio',
                     style: GoogleFonts.outfit(
-                      fontSize: 12,
+                      fontSize: isTab ? 15 : 12,
                       fontWeight: FontWeight.w700,
                       color: Colors.black87,
                     ),
@@ -2301,7 +2309,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
-                    fontSize: isTab ? 16 : 14,
+                    fontSize: isTab ? 20 : 14,
                     fontWeight: FontWeight.w800,
                     color: Colors.black87,
                   ),
@@ -2309,7 +2317,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 Text(
                   _getRatioLabel(_activeFrame?.aspectRatio ?? _aspectRatio),
                   style: GoogleFonts.outfit(
-                    fontSize: 10,
+                    fontSize: isTab ? 12 : 10,
                     fontWeight: FontWeight.w600,
                     color: Colors.black45,
                   ),
@@ -2325,10 +2333,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
               IconButton(
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                constraints: BoxConstraints(minWidth: isTab ? 42 : 32, minHeight: isTab ? 42 : 32),
                 icon: Icon(
                   Icons.undo_rounded,
-                  size: 20,
+                  size: isTab ? 24 : 20,
                   color: _undoStack.isNotEmpty ? Colors.black87 : Colors.black26,
                 ),
                 onPressed: _undoStack.isNotEmpty ? _undo : null,
@@ -2337,10 +2345,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
               IconButton(
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                constraints: BoxConstraints(minWidth: isTab ? 42 : 32, minHeight: isTab ? 42 : 32),
                 icon: Icon(
                   Icons.redo_rounded,
-                  size: 20,
+                  size: isTab ? 24 : 20,
                   color: _redoStack.isNotEmpty ? Colors.black87 : Colors.black26,
                 ),
                 onPressed: _redoStack.isNotEmpty ? _redo : null,
@@ -2349,8 +2357,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
               IconButton(
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                icon: const Icon(Icons.restart_alt_rounded, size: 20, color: Colors.redAccent),
+                constraints: BoxConstraints(minWidth: isTab ? 42 : 32, minHeight: isTab ? 42 : 32),
+                icon: Icon(Icons.restart_alt_rounded, size: isTab ? 24 : 20, color: Colors.redAccent),
                 onPressed: _resetToDefault,
                 tooltip: 'Reset',
               ),
@@ -2378,13 +2386,13 @@ class _GenerateScreenState extends State<GenerateScreen> {
     // Responsive max preview constraints: vertically expansive for stories/portraits
     final double currentRatio = (_activeFrame?.aspectRatio ?? _aspectRatio).clamp(0.4, 2.5);
     final double maxCanvasHeight = isTab
-        ? 440
+        ? (currentRatio < 0.65 ? 600.0 : (currentRatio < 0.95 ? 540.0 : 490.0))
         : (currentRatio < 0.65
             ? (screenHeight * 0.44).clamp(320.0, 390.0)
             : (currentRatio < 0.95
                 ? (screenHeight * 0.38).clamp(280.0, 335.0)
                 : (screenHeight < 700 ? 220 : 265)));
-    final double maxCanvasWidth = isTab ? 500 : double.infinity;
+    final double maxCanvasWidth = isTab ? 640.0 : double.infinity;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -2409,11 +2417,11 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 Expanded(
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: isTab ? 650 : double.infinity),
+                      constraints: BoxConstraints(maxWidth: isTab ? 780.0 : double.infinity),
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         padding: EdgeInsets.symmetric(
-                          horizontal: isTab ? 24 : 16,
+                          horizontal: isTab ? 28 : 16,
                           vertical: 8,
                         ),
                         child: Column(
@@ -2499,7 +2507,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
                             // Floating Quick Photo Actions & Arrange Bar under Canvas
                             if (_selectedImage != null || _selectedImages.any((img) => img != null))
-                              _buildCanvasPhotoControlsBar()
+                              _buildCanvasPhotoControlsBar(isTab)
                             else if (_bgMode == 1 && (_frameBgImage != null || _frameBgImageBytes != null))
                               _buildCanvasBgImageIndicator(),
 
@@ -2772,7 +2780,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
   // Action Bar: Ultra-HD Save, Share, Save Library
   // ---------------------------------------------------------------------------
   Widget _buildExportActionBar(BuildContext context, bool isTab) {
-    final buttonSize = isTab ? 50.0 : 44.0;
+    final buttonSize = isTab ? 54.0 : 44.0;
     return Row(
       children: [
         // Save to Photos (Primary Ultra-HD)
@@ -2783,12 +2791,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
             backgroundColor: AppColors.bratGreen,
             textColor: Colors.black,
             height: buttonSize,
-            fontSize: isTab ? 15 : 13.5,
+            fontSize: isTab ? 16 : 13.5,
             isFullWidth: true,
             onTap: _exportToPhotos,
           ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: isTab ? 10 : 8),
 
         // Share
         IosBounceButton(
@@ -2796,7 +2804,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
           onTap: () => _shareMeme(context),
           child: Container(
             height: buttonSize,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.symmetric(horizontal: isTab ? 18 : 14),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(buttonSize / 2),
@@ -2813,17 +2821,17 @@ class _GenerateScreenState extends State<GenerateScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const AppSvgIcon(
+                AppSvgIcon(
                   assetPath: 'assets/svg/share.svg',
-                  size: 16,
+                  size: isTab ? 19 : 16,
                   color: AppColors.textBlackColor,
                 ),
-                const SizedBox(width: 5),
+                SizedBox(width: isTab ? 7 : 5),
                 Text(
                   'Share',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: isTab ? 14 : 13,
+                    fontSize: isTab ? 15 : 13,
                     color: AppColors.textBlackColor,
                   ),
                 ),
@@ -2831,18 +2839,18 @@ class _GenerateScreenState extends State<GenerateScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: isTab ? 10 : 8),
 
         // Save to Database
         IosGlassIconButton(
           svgPath: 'assets/svg/save.svg',
           size: buttonSize,
-          iconSize: isTab ? 22 : 18,
+          iconSize: isTab ? 24 : 18,
           borderRadius: buttonSize / 2,
           iconColor: AppColors.fillColor,
           onTap: _saveMemeToDatabase,
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: isTab ? 10 : 8),
 
         // Studio FX Button (Circular Symmetrical)
         IosBounceButton(
@@ -2863,7 +2871,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
               ],
             ),
             alignment: Alignment.center,
-            child: const Text('✨', style: TextStyle(fontSize: 18)),
+            child: Text('✨', style: TextStyle(fontSize: isTab ? 22 : 18)),
           ),
         ),
       ],
@@ -2889,7 +2897,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
           final isSelected = _selectedTab == idx;
           final item = tabs[idx];
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: EdgeInsets.only(right: isTab ? 12 : 8),
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
@@ -2898,12 +2906,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: EdgeInsets.symmetric(
-                  horizontal: isTab ? 16 : 12,
-                  vertical: 8,
+                  horizontal: isTab ? 18 : 12,
+                  vertical: isTab ? 11 : 8,
                 ),
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.black : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(isTab ? 15 : 12),
                   border: Border.all(
                     color: isSelected ? Colors.black : Colors.black12,
                   ),
@@ -2913,14 +2921,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   children: [
                     Icon(
                       item['icon'] as IconData,
-                      size: 16,
+                      size: isTab ? 20 : 16,
                       color: isSelected ? AppColors.bratGreen : Colors.black87,
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: isTab ? 8 : 6),
                     Text(
                       item['label'] as String,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: isTab ? 15 : 13,
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected ? Colors.white : Colors.black87,
                       ),
@@ -3041,16 +3049,16 @@ class _GenerateScreenState extends State<GenerateScreen> {
         Text(
           'COLLAGE LAYOUT & MULTI-FRAMES',
           style: GoogleFonts.outfit(
-            fontSize: 12,
+            fontSize: isTab ? 15 : 12,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
             color: Colors.black54,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: isTab ? 10 : 8),
 
         SizedBox(
-          height: 86,
+          height: isTab ? 112 : 86,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -3080,12 +3088,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  width: 104,
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  width: isTab ? 128 : 104,
+                  margin: EdgeInsets.only(right: isTab ? 10 : 8),
+                  padding: EdgeInsets.symmetric(horizontal: isTab ? 8 : 6, vertical: isTab ? 10 : 8),
                   decoration: BoxDecoration(
                     color: isSelected ? Colors.black : const Color(0xffF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(isTab ? 15 : 12),
                     border: Border.all(
                       color: isSelected ? AppColors.bratGreen : Colors.black12,
                       width: isSelected ? 1.8 : 1.0,
@@ -3096,16 +3104,16 @@ class _GenerateScreenState extends State<GenerateScreen> {
                     children: [
                       Icon(
                         p['icon'] as IconData,
-                        size: 24,
+                        size: isTab ? 28 : 24,
                         color: isSelected ? AppColors.bratGreen : Colors.black87,
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: isTab ? 6 : 4),
                       Text(
                         p['label'] as String,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: isTab ? 13 : 11,
                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                           color: isSelected ? Colors.white : Colors.black87,
                         ),
@@ -3114,7 +3122,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                         p['sub'] as String,
                         maxLines: 1,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: isTab ? 11 : 9,
                           color: isSelected ? Colors.white60 : Colors.black45,
                         ),
                       ),
@@ -3126,7 +3134,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
           ),
         ),
 
-        const SizedBox(height: 14),
+        SizedBox(height: isTab ? 18 : 14),
 
         // 2. Aspect Ratio Selector
         Row(
@@ -3134,7 +3142,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
             Text(
               'RATIO:',
               style: GoogleFonts.outfit(
-                fontSize: 11,
+                fontSize: isTab ? 13 : 11,
                 fontWeight: FontWeight.w800,
                 color: Colors.black54,
               ),
@@ -3150,7 +3158,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                     final currentRatio = _activeFrame?.aspectRatio ?? _aspectRatio;
                     final isSelected = (currentRatio - ratioVal).abs() < 0.03;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 6),
+                      padding: EdgeInsets.only(right: isTab ? 8 : 6),
                       child: GestureDetector(
                         onTap: () {
                           _recordHistory();
@@ -3162,10 +3170,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
                           });
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: EdgeInsets.symmetric(horizontal: isTab ? 14 : 10, vertical: isTab ? 9 : 6),
                           decoration: BoxDecoration(
                             color: isSelected ? Colors.black : const Color(0xffF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(isTab ? 10 : 8),
                             border: Border.all(
                               color: isSelected ? AppColors.bratGreen : Colors.transparent,
                               width: 1.2,
@@ -3174,7 +3182,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                           child: Text(
                             r['label'] as String,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: isTab ? 13 : 11,
                               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                               color: isSelected ? AppColors.bratGreen : Colors.black87,
                             ),
@@ -3189,9 +3197,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
           ],
         ),
 
-        const SizedBox(height: 16),
+        SizedBox(height: isTab ? 20 : 16),
         const Divider(height: 1, color: Colors.black12),
-        const SizedBox(height: 14),
+        SizedBox(height: isTab ? 18 : 14),
 
         // 3. Multi-Photo Slots Manager
         Row(
@@ -3200,7 +3208,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
             Text(
               'PHOTO SLOTS (${active.maxPhotos})',
               style: GoogleFonts.outfit(
-                fontSize: 12,
+                fontSize: isTab ? 15 : 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.5,
                 color: Colors.black54,
@@ -3210,19 +3218,19 @@ class _GenerateScreenState extends State<GenerateScreen> {
             Flexible(
               child: Text(
                 'Tap a slot to set or change photo',
-                style: GoogleFonts.outfit(fontSize: 11, color: Colors.black45),
+                style: GoogleFonts.outfit(fontSize: isTab ? 13 : 11, color: Colors.black45),
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: isTab ? 12 : 8),
 
         // Slots Grid
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: isTab ? 14 : 10,
+          runSpacing: isTab ? 14 : 10,
           children: List.generate(active.maxPhotos, (slotIdx) {
             final hasPhoto = slotIdx < _selectedImages.length && _selectedImages[slotIdx] != null;
             final isSlotActive = _activePhotoSlot == slotIdx;
@@ -3236,11 +3244,11 @@ class _GenerateScreenState extends State<GenerateScreen> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                width: isTab ? 130 : 100,
-                height: isTab ? 140 : 115,
+                width: isTab ? 135 : 100,
+                height: isTab ? 145 : 115,
                 decoration: BoxDecoration(
                   color: isSlotActive ? AppColors.bratGreen.withValues(alpha: 0.1) : const Color(0xffF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(isTab ? 16 : 12),
                   border: Border.all(
                     color: isSlotActive ? AppColors.bratGreen : Colors.black12,
                     width: isSlotActive ? 2.0 : 1.0,
@@ -3250,10 +3258,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   children: [
                     // Top Slot Header
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: EdgeInsets.symmetric(horizontal: isTab ? 8 : 6, vertical: isTab ? 5 : 3),
                       decoration: BoxDecoration(
                         color: isSlotActive ? Colors.black : Colors.black.withValues(alpha: 0.05),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(isTab ? 14 : 10)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3261,15 +3269,15 @@ class _GenerateScreenState extends State<GenerateScreen> {
                           Text(
                             'Slot ${slotIdx + 1}',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: isTab ? 12 : 10,
                               fontWeight: FontWeight.bold,
                               color: isSlotActive ? AppColors.bratGreen : Colors.black87,
                             ),
                           ),
                           if (hasPhoto)
-                            const Icon(Icons.check_circle_rounded, size: 12, color: AppColors.bratGreen)
+                            Icon(Icons.check_circle_rounded, size: isTab ? 14 : 12, color: AppColors.bratGreen)
                           else
-                            const Icon(Icons.add_circle_outline_rounded, size: 12, color: Colors.black45),
+                            Icon(Icons.add_circle_outline_rounded, size: isTab ? 14 : 12, color: Colors.black45),
                         ],
                       ),
                     ),
@@ -3279,7 +3287,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                       child: Center(
                         child: hasPhoto
                             ? ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(isTab ? 8 : 6),
                                 child: Image.file(
                                   File(_selectedImages[slotIdx]!.path),
                                   fit: BoxFit.cover,
@@ -3289,10 +3297,17 @@ class _GenerateScreenState extends State<GenerateScreen> {
                               )
                             : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.add_a_photo_outlined, size: 22, color: Colors.black38),
-                                  SizedBox(height: 3),
-                                  Text('+ Add Photo', style: TextStyle(fontSize: 10, color: Colors.black45, fontWeight: FontWeight.bold)),
+                                children: [
+                                  Icon(Icons.add_a_photo_outlined, size: isTab ? 26 : 22, color: Colors.black38),
+                                  SizedBox(height: isTab ? 4 : 3),
+                                  Text(
+                                    '+ Add Photo',
+                                    style: TextStyle(
+                                      fontSize: isTab ? 12 : 10,
+                                      color: Colors.black45,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ],
                               ),
                       ),
@@ -3301,25 +3316,25 @@ class _GenerateScreenState extends State<GenerateScreen> {
                     // Bottom Action Strip (if has photo)
                     if (hasPhoto)
                       Container(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        decoration: const BoxDecoration(
+                        padding: EdgeInsets.symmetric(vertical: isTab ? 4 : 2),
+                        decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(10)),
+                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(isTab ? 14 : 10)),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             GestureDetector(
                               onTap: () => _openImageCropAndAdjustDialog(slotIndex: slotIdx),
-                              child: const Icon(Icons.crop_rounded, size: 14, color: Colors.black87),
+                              child: Icon(Icons.crop_rounded, size: isTab ? 16 : 14, color: Colors.black87),
                             ),
                             GestureDetector(
                               onTap: () => _showPhotoSourceDialog(slotIndex: slotIdx),
-                              child: const Icon(Icons.swap_horiz_rounded, size: 14, color: Colors.black87),
+                              child: Icon(Icons.swap_horiz_rounded, size: isTab ? 16 : 14, color: Colors.black87),
                             ),
                             GestureDetector(
                               onTap: () => _deletePhotoSlot(slotIdx),
-                              child: const Icon(Icons.delete_outline_rounded, size: 14, color: Colors.redAccent),
+                              child: Icon(Icons.delete_outline_rounded, size: isTab ? 16 : 14, color: Colors.redAccent),
                             ),
                           ],
                         ),
@@ -4775,7 +4790,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
 
 
-  Widget _buildCanvasPhotoControlsBar() {
+  Widget _buildCanvasPhotoControlsBar([bool isTab = false]) {
     final totalSlots = _activeFrame?.maxPhotos ?? 1;
     final currentSlotImage = (_activePhotoSlot < _selectedImages.length ? _selectedImages[_activePhotoSlot] : null) ?? _selectedImage;
 
@@ -4783,7 +4798,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (totalSlots > 1) ...[
-          const SizedBox(height: 6),
+          SizedBox(height: isTab ? 8 : 6),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -4793,7 +4808,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
                 final isSelected = _activePhotoSlot == slotIdx;
                 final file = slotIdx < _selectedImages.length ? _selectedImages[slotIdx] : null;
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: EdgeInsets.symmetric(horizontal: isTab ? 6 : 4),
                   child: IosBounceButton(
                     onTap: () {
                       HapticFeedback.selectionClick();
@@ -4801,34 +4816,34 @@ class _GenerateScreenState extends State<GenerateScreen> {
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: isTab ? 14 : 10, vertical: isTab ? 7 : 4),
                       decoration: BoxDecoration(
                         color: isSelected ? Colors.black : Colors.white,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(isTab ? 14 : 10),
                         border: Border.all(
                           color: isSelected ? AppColors.bratGreen : Colors.black12,
-                          width: isSelected ? 1.4 : 1.0,
+                          width: isSelected ? 1.6 : 1.0,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 12,
-                            height: 12,
+                            width: isTab ? 14 : 12,
+                            height: isTab ? 14 : 12,
                             decoration: BoxDecoration(
                               color: file != null ? AppColors.bratGreen : Colors.grey.shade300,
                               shape: BoxShape.circle,
                             ),
                             child: file != null
-                                ? const Icon(Icons.check, size: 8, color: Colors.black)
+                                ? Icon(Icons.check, size: isTab ? 10 : 8, color: Colors.black)
                                 : null,
                           ),
-                          const SizedBox(width: 5),
+                          SizedBox(width: isTab ? 7 : 5),
                           Text(
                             'Slot ${slotIdx + 1}',
                             style: GoogleFonts.outfit(
-                              fontSize: 11,
+                              fontSize: isTab ? 13 : 11,
                               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                               color: isSelected ? Colors.white : Colors.black87,
                             ),
@@ -4844,11 +4859,11 @@ class _GenerateScreenState extends State<GenerateScreen> {
         ],
 
         Container(
-          margin: const EdgeInsets.only(top: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          margin: EdgeInsets.only(top: isTab ? 8 : 6),
+          padding: EdgeInsets.symmetric(horizontal: isTab ? 12 : 8, vertical: isTab ? 7 : 5),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(isTab ? 24 : 20),
             border: Border.all(color: Colors.black12),
             boxShadow: const [
               BoxShadow(
@@ -4865,10 +4880,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 20,
-                  height: 20,
+                  width: isTab ? 26 : 20,
+                  height: isTab ? 26 : 20,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(isTab ? 7 : 5),
                     image: currentSlotImage != null
                         ? DecorationImage(
                             image: FileImage(File(currentSlotImage.path)),
@@ -4877,12 +4892,13 @@ class _GenerateScreenState extends State<GenerateScreen> {
                         : null,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: isTab ? 10 : 8),
 
                 // Rotate 90 CW
                 _buildQuickPhotoAction(
                   icon: Icons.rotate_right_rounded,
                   label: '+90°',
+                  isTab: isTab,
                   onTap: () {
                     _recordHistory();
                     HapticFeedback.lightImpact();
@@ -4890,15 +4906,16 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   },
                 ),
 
-                const SizedBox(width: 4),
-                Container(width: 1, height: 14, color: Colors.black12),
-                const SizedBox(width: 4),
+                SizedBox(width: isTab ? 6 : 4),
+                Container(width: 1, height: isTab ? 18 : 14, color: Colors.black12),
+                SizedBox(width: isTab ? 6 : 4),
 
                 // Flip Horizontal
                 _buildQuickPhotoAction(
                   icon: Icons.flip_rounded,
                   label: 'Flip H',
                   isActive: _flipHorizontal,
+                  isTab: isTab,
                   onTap: () {
                     _recordHistory();
                     HapticFeedback.lightImpact();
@@ -4906,14 +4923,15 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   },
                 ),
 
-                const SizedBox(width: 4),
-                Container(width: 1, height: 14, color: Colors.black12),
-                const SizedBox(width: 4),
+                SizedBox(width: isTab ? 6 : 4),
+                Container(width: 1, height: isTab ? 18 : 14, color: Colors.black12),
+                SizedBox(width: isTab ? 6 : 4),
 
                 // Fit Mode Toggle
                 _buildQuickPhotoAction(
                   icon: _photoFit == BoxFit.cover ? Icons.fullscreen_rounded : Icons.fit_screen_rounded,
                   label: _photoFit == BoxFit.cover ? 'Cover' : 'Fit',
+                  isTab: isTab,
                   onTap: () {
                     _recordHistory();
                     HapticFeedback.lightImpact();
@@ -4921,37 +4939,40 @@ class _GenerateScreenState extends State<GenerateScreen> {
                   },
                 ),
 
-                const SizedBox(width: 4),
-                Container(width: 1, height: 14, color: Colors.black12),
-                const SizedBox(width: 4),
+                SizedBox(width: isTab ? 6 : 4),
+                Container(width: 1, height: isTab ? 18 : 14, color: Colors.black12),
+                SizedBox(width: isTab ? 6 : 4),
 
                 // Crop & Adjust (Opens dedicated new screen)
                 _buildQuickPhotoAction(
                   icon: Icons.crop_rotate_rounded,
                   label: 'Crop/Zoom',
+                  isTab: isTab,
                   onTap: () => _openImageCropAndAdjustDialog(slotIndex: _activePhotoSlot),
                 ),
 
-                const SizedBox(width: 4),
-                Container(width: 1, height: 14, color: Colors.black12),
-                const SizedBox(width: 4),
+                SizedBox(width: isTab ? 6 : 4),
+                Container(width: 1, height: isTab ? 18 : 14, color: Colors.black12),
+                SizedBox(width: isTab ? 6 : 4),
 
                 // Change Photo
                 _buildQuickPhotoAction(
                   icon: Icons.swap_horiz_rounded,
                   label: 'Change',
+                  isTab: isTab,
                   onTap: () => _showPhotoSourceDialog(slotIndex: _activePhotoSlot),
                 ),
 
-                const SizedBox(width: 4),
-                Container(width: 1, height: 14, color: Colors.black12),
-                const SizedBox(width: 4),
+                SizedBox(width: isTab ? 6 : 4),
+                Container(width: 1, height: isTab ? 18 : 14, color: Colors.black12),
+                SizedBox(width: isTab ? 6 : 4),
 
                 // Delete Photo
                 _buildQuickPhotoAction(
                   icon: Icons.delete_outline_rounded,
                   label: 'Clear',
                   color: Colors.redAccent,
+                  isTab: isTab,
                   onTap: () => _deletePhotoSlot(_activePhotoSlot),
                 ),
               ],
@@ -4959,7 +4980,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
           ),
         ),
 
-        const SizedBox(height: 5),
+        SizedBox(height: isTab ? 7 : 5),
 
         // Hint for interactive gestures
         Padding(
@@ -4969,12 +4990,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.touch_app_rounded, size: 12, color: Colors.black45),
-                SizedBox(width: 4),
+              children: [
+                Icon(Icons.touch_app_rounded, size: isTab ? 15 : 12, color: Colors.black45),
+                const SizedBox(width: 4),
                 Text(
                   'Drag photo on canvas to position • Pinch to scale',
-                  style: TextStyle(fontSize: 10.5, color: Colors.black45, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: isTab ? 12 : 10.5, color: Colors.black45, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -4989,27 +5010,28 @@ class _GenerateScreenState extends State<GenerateScreen> {
     required String label,
     required VoidCallback onTap,
     bool isActive = false,
+    bool isTab = false,
     Color? color,
   }) {
     final effectiveColor = color ?? (isActive ? AppColors.bratGreen : Colors.black87);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(isTab ? 8 : 6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: EdgeInsets.symmetric(horizontal: isTab ? 9 : 6, vertical: isTab ? 5 : 3),
         decoration: BoxDecoration(
           color: isActive ? Colors.black : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(isTab ? 8 : 6),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: isActive ? AppColors.bratGreen : effectiveColor),
-            const SizedBox(width: 3),
+            Icon(icon, size: isTab ? 17 : 14, color: isActive ? AppColors.bratGreen : effectiveColor),
+            SizedBox(width: isTab ? 5 : 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: isTab ? 13 : 11,
                 fontWeight: FontWeight.bold,
                 color: isActive ? Colors.white : effectiveColor,
               ),

@@ -116,11 +116,35 @@
 * **Real-Time Search Bar:** Instant query filtering across questions and detailed answers.
 * **19 Curated In-App Q&As:** Clear, comprehensive troubleshooting and workflow guidance directly in the app.
 
-### 🔒 10. 100% Private, On-Device & Zero-Tracking Architecture
+### 📱 11. iPad & iPhone Responsive Studio Perfection
+* **Multi-Device Adaptability:** Engineered with tailored UI layouts for both iPhone (6.7" Pro Max down to SE) and iPad (12.9" Pro, Air, Mini).
+* **Responsive Tablet Architecture:**
+  * Scaled typography (up to 38pt headings, 20pt navigation bar titles).
+  * Expanded hero banners with proportional icon dimensions.
+  * 3-column responsive grid layouts for templates discovery and the drafts library.
+  * Preview canvas dynamically scales up to 600pt height and 640pt width with a 780pt centered constraint.
+  * Floating glass bottom navigation bar centered with a max-width of 660pt, 26pt icons, and 14pt typography.
+* **Layout Stability:** Zero `RenderFlex` overflow errors and zero range/pixel clipping issues across all screen sizes.
+
+### 🔒 12. 100% Private, On-Device & Zero-Tracking Architecture
 * **Zero Cloud Uploads:** All image compositing, photo transformations, and filter rendering execute strictly on-device using Flutter's native Canvas rendering engine.
 * **Zero Tracking & Zero Ads:** No advertising SDKs, no user analytics beacons, no tracking identifiers.
 * **Zero Friction:** Instant launch with no registration, no accounts, and no subscriptions.
 * **In-App Privacy Policy:** Clear on-device declaration accessible via Settings > Privacy & Data Safety.
+
+---
+
+## 📸 App Store Screenshot Suite (iPhone & iPad Pro)
+
+The repository includes ready-to-upload Apple App Store screenshot assets captured directly on official iOS simulators at native Apple Store submission resolutions:
+
+| # | Screen Name | iPhone (6.7" Super Retina XDR)<br>`1290 x 2796 px` | iPad Pro (12.9" Liquid Retina XDR)<br>`2048 x 2732 px` |
+| :-: | :--- | :--- | :--- |
+| **01** | **Studio Hub & Templates** | `screenshots/iphone/01_studio_hub_templates.png` | `screenshots/ipad/01_studio_hub_templates.png` |
+| **02** | **Canvas Editor & Text** | `screenshots/iphone/02_canvas_editor.png` | `screenshots/ipad/02_canvas_editor.png` |
+| **03** | **Multi-Photo Collages** | `screenshots/iphone/03_multiphoto_collage.png` | `screenshots/ipad/03_multiphoto_collage.png` |
+| **04** | **Crop & Adjust Studio** | `screenshots/iphone/04_crop_adjust_studio.png` | `screenshots/ipad/04_crop_adjust_studio.png` |
+| **05** | **Saved Library & Drafts** | `screenshots/iphone/05_saved_library_drafts.png` | `screenshots/ipad/05_saved_library_drafts.png` |
 
 ---
 

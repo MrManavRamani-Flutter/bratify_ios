@@ -105,6 +105,8 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isTab = MediaQuery.sizeOf(context).shortestSide >= 600;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -120,15 +122,18 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
             children: [
               // Top Navigation Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTab ? 24 : 16,
+                  vertical: isTab ? 14 : 10,
+                ),
                 child: Row(
                   children: [
                     // Cancel
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 24),
+                      icon: Icon(Icons.close_rounded, color: Colors.white70, size: isTab ? 28 : 24),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: isTab ? 12 : 8),
                     // Title
                     Expanded(
                       child: Column(
@@ -138,7 +143,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                             widget.title,
                             style: GoogleFonts.outfit(
                               color: Colors.white,
-                              fontSize: 17,
+                              fontSize: isTab ? 22 : 17,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -146,7 +151,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                             'Pinch to zoom • Drag to position',
                             style: GoogleFonts.outfit(
                               color: Colors.white38,
-                              fontSize: 11,
+                              fontSize: isTab ? 13 : 11,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -157,10 +162,13 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                     IosBounceButton(
                       onTap: _applyAndDone,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTab ? 22 : 16,
+                          vertical: isTab ? 10 : 8,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.bratGreen,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(isTab ? 24 : 20),
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.bratGreen.withValues(alpha: 0.3),
@@ -172,13 +180,13 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.check_rounded, color: Colors.black, size: 16),
+                            Icon(Icons.check_rounded, color: Colors.black, size: isTab ? 18 : 16),
                             const SizedBox(width: 4),
                             Text(
                               'Done',
                               style: GoogleFonts.outfit(
                                 color: Colors.black,
-                                fontSize: 13,
+                                fontSize: isTab ? 15 : 13,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -193,7 +201,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
               // Interactive Crop Preview Workspace
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(isTab ? 24.0 : 16.0),
                   child: Center(
                     child: AspectRatio(
                       aspectRatio: _aspectRatio,
@@ -201,8 +209,8 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           color: Colors.black,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.bratGreen, width: 2),
+                          borderRadius: BorderRadius.circular(isTab ? 22 : 16),
+                          border: Border.all(color: AppColors.bratGreen, width: isTab ? 2.5 : 2.0),
                           boxShadow: const [
                             BoxShadow(
                               color: Colors.black54,
@@ -262,32 +270,32 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
 
               // Aspect Ratio Chips
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: EdgeInsets.symmetric(horizontal: isTab ? 24.0 : 16.0),
                 child: SizedBox(
-                  height: 36,
+                  height: isTab ? 44 : 36,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     children: [
-                      _buildRatioChip('1:1 Square', 1.0),
-                      _buildRatioChip('4:5 Portrait', 4 / 5),
-                      _buildRatioChip('9:16 Story', 9 / 16),
-                      _buildRatioChip('16:9 Banner', 16 / 9),
-                      _buildRatioChip('3:4 Classic', 3 / 4),
+                      _buildRatioChip('1:1 Square', 1.0, isTab),
+                      _buildRatioChip('4:5 Portrait', 4 / 5, isTab),
+                      _buildRatioChip('9:16 Story', 9 / 16, isTab),
+                      _buildRatioChip('16:9 Banner', 16 / 9, isTab),
+                      _buildRatioChip('3:4 Classic', 3 / 4, isTab),
                     ],
                   ),
                 ),
               ),
 
-              const SizedBox(height: 12),
+              SizedBox(height: isTab ? 16 : 12),
 
               // Bottom Action Controls Bar
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: const BoxDecoration(
-                  color: Color(0xff18181E),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  boxShadow: [
+                padding: EdgeInsets.symmetric(horizontal: isTab ? 36 : 20, vertical: isTab ? 18 : 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xff18181E),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(isTab ? 30 : 24)),
+                  boxShadow: const [
                     BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, -2)),
                   ],
                 ),
@@ -298,6 +306,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                     _buildToolButton(
                       icon: Icons.rotate_90_degrees_cw_rounded,
                       label: 'Rotate 90°',
+                      isTab: isTab,
                       onTap: _rotate90,
                     ),
                     // Flip H
@@ -305,6 +314,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                       icon: Icons.flip_rounded,
                       label: 'Mirror X',
                       isActive: _flipHorizontal,
+                      isTab: isTab,
                       onTap: _toggleFlipH,
                     ),
                     // Flip V
@@ -312,12 +322,14 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
                       icon: Icons.swap_vert_rounded,
                       label: 'Mirror Y',
                       isActive: _flipVertical,
+                      isTab: isTab,
                       onTap: _toggleFlipV,
                     ),
                     // Reset
                     _buildToolButton(
                       icon: Icons.refresh_rounded,
                       label: 'Reset',
+                      isTab: isTab,
                       onTap: _resetTransform,
                     ),
                   ],
@@ -330,20 +342,20 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     );
   }
 
-  Widget _buildRatioChip(String label, double ratio) {
+  Widget _buildRatioChip(String label, double ratio, [bool isTab = false]) {
     final isSelected = (_aspectRatio - ratio).abs() < 0.03;
     return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
+      padding: EdgeInsets.only(right: isTab ? 10.0 : 8.0),
       child: GestureDetector(
         onTap: () {
           HapticFeedback.selectionClick();
           setState(() => _aspectRatio = ratio);
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: isTab ? 16 : 12, vertical: isTab ? 9 : 6),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.bratGreen : Colors.white12,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(isTab ? 12 : 10),
             border: Border.all(
               color: isSelected ? AppColors.bratGreen : Colors.white24,
             ),
@@ -353,7 +365,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
             label,
             style: GoogleFonts.outfit(
               color: isSelected ? Colors.black : Colors.white70,
-              fontSize: 12,
+              fontSize: isTab ? 14 : 12,
               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
@@ -367,6 +379,7 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
     required String label,
     required VoidCallback onTap,
     bool isActive = false,
+    bool isTab = false,
   }) {
     return IosBounceButton(
       onTap: onTap,
@@ -374,8 +387,8 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: isTab ? 56 : 44,
+            height: isTab ? 56 : 44,
             decoration: BoxDecoration(
               color: isActive ? AppColors.bratGreen : Colors.white10,
               shape: BoxShape.circle,
@@ -386,15 +399,15 @@ class _ImageCropScreenState extends State<ImageCropScreen> {
             child: Icon(
               icon,
               color: isActive ? Colors.black : Colors.white,
-              size: 20,
+              size: isTab ? 26 : 20,
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: isTab ? 8 : 6),
           Text(
             label,
             style: GoogleFonts.outfit(
               color: isActive ? AppColors.bratGreen : Colors.white60,
-              fontSize: 11,
+              fontSize: isTab ? 13 : 11,
               fontWeight: FontWeight.w600,
             ),
           ),
