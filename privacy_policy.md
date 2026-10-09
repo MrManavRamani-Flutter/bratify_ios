@@ -78,7 +78,9 @@ We may update this Privacy Policy periodically to reflect app updates or regulat
 
 ## 9. Contact Us
 
-If you have any questions or feedback regarding this Privacy Policy, please contact us via the official developer contact link on the App Store page or email us at **manav.ramani.dev@gmail.com**.
+If you have any questions or feedback regarding this Privacy Policy, please contact us via the official developer contact link on the App Store page or email us at **pure.pixel36@gmail.com**.
+
+**Contact Email:** `pure.pixel36@gmail.com`
 
 ---
 
